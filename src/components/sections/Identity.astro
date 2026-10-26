@@ -1,0 +1,550 @@
+---
+import Eyebrow from "../ui/Eyebrow.astro";
+import { IDENTITY, IDENTITY_HEADLINE_LINES, STATS } from "../../lib/content";
+---
+
+<section id="about" class="section-rhythm identity-section">
+  <div class="container-edge">
+    <div class="identity-grid">
+      <div class="identity-copy">
+        <Eyebrow label={IDENTITY.eyebrow} />
+        <h2 class="t-display identity-headline mt-6" data-typing-headline>
+          {
+            IDENTITY_HEADLINE_LINES.map((line) => (
+              <span class="line">
+                {line.map((w) => (
+                  <span class="word" data-word style={w.gold ? "color: var(--gold-500);" : ""}>{w.text}</span>
+                ))}
+              </span>
+            ))
+          }
+        </h2>
+
+        <p class="t-body t-body-muted identity-body mt-8">{IDENTITY.body}</p>
+
+        <div class="identity-ctas mt-10">
+          <a href={IDENTITY.primaryCta.href} class="btn btn-gold-fill" data-pulse-btn data-magnetic>{IDENTITY.primaryCta.label}</a>
+          <a href={IDENTITY.secondaryCta.href} class="btn btn-gold-ghost" data-magnetic>{IDENTITY.secondaryCta.label}</a>
+        </div>
+      </div>
+
+      <div class="identity-portrait" aria-hidden="true">
+        <div class="portrait-orbit"></div>
+        <div class="portrait-frame" data-portrait-float>
+          <div class="portrait-image">
+            <span class="brand-monogram">JJ↗</span>
+            <span class="brand-caption t-mono">THE JOSHJTRADEZ MINDSET</span>
+          </div>
+          <span class="portrait-glint" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="t-mono stats-eyebrow">Live Performance · Verified Prop Account</p>
+
+    <div class="stats-row">
+      {
+        STATS.map((s) => (
+          <div
+            class:list={["stat-cell", s.trend && `stat-cell--${s.trend}`]}
+            data-stat
+            data-stat-numeric={s.numeric}
+            data-stat-prefix={s.prefix ?? ""}
+            data-stat-suffix={s.suffix ?? ""}
+            data-stat-gauge={s.gauge ?? ""}
+          >
+            <div class="stat-head">
+              <p class="stat-label t-mono">{s.label}</p>
+              {s.trend && (
+                <span class:list={["stat-trend", `stat-trend--${s.trend}`]} aria-hidden="true">
+                  {s.trend === "up"   && "↑"}
+                  {s.trend === "down" && "↓"}
+                  {s.trend === "neutral" && "→"}
+                </span>
+              )}
+            </div>
+
+            {s.gauge !== undefined ? (
+              <div class="stat-gauge-row">
+                <p class="stat-value t-display" data-stat-value>{s.value}</p>
+                <svg class="stat-gauge" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="5"/>
+                  <circle
+                    cx="32" cy="32" r="26" fill="none"
+                    stroke="var(--gold-500)" stroke-width="5"
+                    stroke-linecap="round" pathLength="100"
+                    stroke-dasharray="0 100"
+                    transform="rotate(-90 32 32)"
+                    data-stat-gauge-arc
+                  />
+                </svg>
+              </div>
+            ) : (
+              <p class="stat-value t-display" data-stat-value>{s.value}</p>
+            )}
+
+            {s.meta && <p class="stat-meta t-mono">{s.meta}</p>}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .identity-section { background: var(--bg-base); }
+
+  .identity-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .identity-grid {
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+      gap: 80px;
+    }
+  }
+
+  .identity-headline {
+    font-weight: 700;
+  }
+  .identity-headline .line {
+    display: block;
+    overflow: hidden; /* allows shimmer mask later */
+  }
+  .identity-headline .word {
+    display: inline-block;
+    margin-right: 0.18em;
+  }
+
+  .identity-body { max-width: 56ch; }
+
+  .identity-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .identity-portrait {
+    position: relative;
+    width: min(420px, 100%);
+    aspect-ratio: 1 / 1;
+    margin-inline: auto;
+  }
+
+  .portrait-orbit {
+    position: absolute;
+    inset: -28px;
+    border-radius: 50%;
+    border: 1px dashed rgba(229, 179, 68, 0.4);
+    animation: portrait-orbit 32s linear infinite;
+  }
+  @keyframes portrait-orbit {
+    to { transform: rotate(360deg); }
+  }
+
+  .portrait-frame {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(229,179,68,0.10), rgba(229,179,68,0));
+    border: 1px solid var(--gold-500);
+    box-shadow: 0 0 80px rgba(229,179,68,0.15), 0 30px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  .portrait-image {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background-color: var(--bg-elev-2);
+    background-image:
+      radial-gradient(ellipse at 50% 35%, rgba(229, 179, 68, 0.32) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 70%, rgba(10, 10, 11, 0.6) 0%, transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 18px 18px, 18px 18px;
+    overflow: hidden;
+  }
+  .portrait-image::before {
+    /* Stylised candle silhouette behind the portrait subject */
+    content: "";
+    position: absolute;
+    inset: 12% 18%;
+    background:
+      linear-gradient(transparent 30%, rgba(229,179,68,0.45) 30%, rgba(229,179,68,0.45) 80%, transparent 80%) no-repeat 12% 100% / 6% 100%,
+      linear-gradient(transparent 18%, rgba(245,245,242,0.30) 18%, rgba(245,245,242,0.30) 70%, transparent 70%) no-repeat 28% 100% / 6% 100%,
+      linear-gradient(transparent 8%,  rgba(229,179,68,0.55) 8%,  rgba(229,179,68,0.55) 92%, transparent 92%) no-repeat 44% 100% / 6% 100%,
+      linear-gradient(transparent 22%, rgba(229,179,68,0.45) 22%, rgba(229,179,68,0.45) 76%, transparent 76%) no-repeat 60% 100% / 6% 100%,
+      linear-gradient(transparent 14%, rgba(245,245,242,0.30) 14%, rgba(245,245,242,0.30) 84%, transparent 84%) no-repeat 76% 100% / 6% 100%,
+      linear-gradient(transparent 28%, rgba(229,179,68,0.45) 28%, rgba(229,179,68,0.45) 68%, transparent 68%) no-repeat 92% 100% / 6% 100%;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .portrait-image .ph-label,
+  .portrait-image .t-mono {
+    position: relative;
+    z-index: 1;
+    background: rgba(10, 10, 11, 0.6);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .portrait-glint {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 40%, rgba(255, 219, 128, 0.18) 50%, transparent 60%);
+    transform: translateX(-100%);
+    animation: glint 8s ease-in-out infinite;
+  }
+  @keyframes glint {
+    0%, 60% { transform: translateX(-100%); }
+    80%      { transform: translateX(100%); }
+    100%     { transform: translateX(100%); }
+  }
+
+  .stats-eyebrow {
+    margin-top: 96px;
+    margin-bottom: 16px;
+    color: var(--gold-500);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .stats-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--gold-500);
+    box-shadow: 0 0 12px var(--gold-glow);
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.25); }
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  @media (min-width: 768px) {
+    .stats-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  .stat-cell {
+    position: relative;
+    background-color: var(--bg-elev-1);
+    background-image:
+      radial-gradient(ellipse at 0% 0%, rgba(229, 179, 68, 0.10), transparent 60%);
+    padding: 24px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+    transition: background 250ms var(--ease-confident);
+    min-height: 160px;
+  }
+  .stat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .stat-trend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1;
+  }
+  .stat-trend--up    { color: var(--gold-500); border-color: rgba(229, 179, 68, 0.5); }
+  .stat-trend--down  { color: var(--white-muted); }
+  .stat-trend--neutral { color: var(--white-muted); }
+
+  .stat-meta {
+    margin-top: auto;
+    color: var(--white-muted);
+    font-size: 10px;
+    letter-spacing: 0.10em;
+  }
+
+  /* Down-trend cells use white-muted instead of full white for the value
+     (no red allowed per the design system). */
+  .stat-cell--down .stat-value { color: var(--white-muted); }
+
+  .stat-gauge-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .stat-gauge {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+  }
+  .stat-gauge circle[data-stat-gauge-arc] {
+    transition: stroke-dasharray 1400ms var(--ease-confident);
+    filter: drop-shadow(0 0 8px var(--gold-glow));
+  }
+  .stat-cell::before {
+    /* Tiny gold corner index — like a Bloomberg-style ticker mark. */
+    content: "";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--gold-500);
+    box-shadow: 0 0 12px var(--gold-glow);
+  }
+  .stat-cell::after {
+    /* Subtle uptrend sparkline at the bottom of each cell. */
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-500) 70%, var(--gold-300));
+    opacity: 0.55;
+  }
+  .stat-cell:hover {
+    background-image:
+      radial-gradient(ellipse at 0% 0%, rgba(229, 179, 68, 0.20), transparent 60%);
+  }
+  .stat-cell.stat-flicker .stat-value {
+    color: var(--gold-300);
+    text-shadow: 0 0 18px var(--gold-glow);
+    transition: color 80ms linear, text-shadow 80ms linear;
+  }
+  .stat-cell.stat-flicker::before {
+    box-shadow: 0 0 22px var(--gold-glow), 0 0 6px var(--gold-300);
+    transition: box-shadow 80ms linear;
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: clamp(32px, 5vw, 60px);
+    line-height: 1;
+    color: var(--white);
+    font-weight: 700;
+    word-break: break-word;
+    letter-spacing: -0.02em;
+  }
+  .stat-label {
+    color: var(--white-muted);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  /* ---- Animation pre-states (kicked by JS once visible) ---- */
+  .identity-headline[data-armed] .word {
+    opacity: 0;
+    transform: translateY(0.3em);
+    will-change: transform, opacity;
+  }
+  .identity-headline[data-armed] .word .char {
+    display: inline-block;
+    opacity: 0;
+  }
+
+  .word { position: relative; }
+  .word .word-shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 38%, rgba(255, 219, 128, 0.65) 50%, transparent 62%);
+    mix-blend-mode: screen;
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+
+  [data-portrait-float][data-armed] {
+    animation: portrait-float 6s ease-in-out infinite;
+  }
+  @keyframes portrait-float {
+    0%, 100% { transform: translateY(-8px); }
+    50%      { transform: translateY(8px); }
+  }
+
+  [data-pulse-btn][data-armed] {
+    animation: cta-pulse 4s ease-in-out infinite;
+  }
+  @keyframes cta-pulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(229, 179, 68, 0); }
+    50%      { box-shadow: 0 0 28px var(--gold-glow); }
+  }
+</style>
+
+<script>
+  import { getGsap, onceVisible, prefersReducedMotion } from "../../lib/motion-config";
+
+  const headline = document.querySelector<HTMLElement>("[data-typing-headline]");
+  const portrait = document.querySelector<HTMLElement>("[data-portrait-float]");
+  const pulseBtn = document.querySelector<HTMLElement>("[data-pulse-btn]");
+  const stats = document.querySelectorAll<HTMLElement>("[data-stat]");
+
+  // Always arm the ambient loops (portrait float, CTA pulse) — CSS keyframes
+  // are governed by the global reduced-motion rule so this is safe.
+  portrait?.setAttribute("data-armed", "true");
+  pulseBtn?.setAttribute("data-armed", "true");
+
+  if (headline) {
+    if (prefersReducedMotion()) {
+      // Show fully without typing.
+      headline.querySelectorAll<HTMLElement>(".word").forEach((w) => {
+        w.style.opacity = "1";
+        w.style.transform = "none";
+      });
+    } else {
+      headline.setAttribute("data-armed", "true");
+
+      // Split each word into chars + a shimmer overlay.
+      const words = Array.from(headline.querySelectorAll<HTMLElement>(".word"));
+      words.forEach((w) => {
+        const text = w.textContent ?? "";
+        w.textContent = "";
+        for (const ch of text) {
+          const span = document.createElement("span");
+          span.className = "char";
+          span.textContent = ch;
+          w.appendChild(span);
+        }
+        const shimmer = document.createElement("span");
+        shimmer.className = "word-shimmer";
+        shimmer.setAttribute("aria-hidden", "true");
+        w.appendChild(shimmer);
+      });
+
+      onceVisible(headline, async () => {
+        const { gsap } = await getGsap();
+        const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+        words.forEach((word, wi) => {
+          const chars = word.querySelectorAll<HTMLElement>(".char");
+          const shimmer = word.querySelector<HTMLElement>(".word-shimmer");
+
+          // Bring the word block in.
+          tl.to(word, { opacity: 1, y: 0, duration: 0.2 }, wi * 0.08);
+
+          // Type the chars ~30ms each.
+          tl.to(
+            chars,
+            {
+              opacity: 1,
+              duration: 0.05,
+              stagger: 0.03,
+              ease: "none",
+            },
+            "<",
+          );
+
+          // Shimmer sweep across the word once it lands.
+          if (shimmer) {
+            tl.fromTo(
+              shimmer,
+              { x: "-120%", opacity: 0 },
+              {
+                x: "120%",
+                opacity: 1,
+                duration: 0.55,
+                ease: "power2.inOut",
+                onComplete: () => {
+                  if (shimmer) shimmer.style.opacity = "0";
+                },
+              },
+              `>-${0.05 * chars.length * 0.4}`,
+            );
+          }
+        });
+      });
+    }
+  }
+
+  // Stat odometer
+  stats.forEach((cell) => {
+    const valueEl = cell.querySelector<HTMLElement>("[data-stat-value]");
+    if (!valueEl) return;
+    const numeric = Number(cell.dataset.statNumeric ?? "0");
+    const prefix = cell.dataset.statPrefix ?? "";
+    const suffix = cell.dataset.statSuffix ?? "";
+    const finalText = valueEl.textContent ?? "";
+
+    if (prefersReducedMotion() || Number.isNaN(numeric)) return;
+
+    // Pre-state: render 0 so the count-up is visible.
+    valueEl.textContent = `${prefix}0${suffix}`;
+
+    onceVisible(cell, async () => {
+      const { gsap } = await getGsap();
+      const obj = { v: 0 };
+      const decimals = numeric % 1 !== 0 ? 2 : 0;
+
+      // Gauge ring animates dasharray from 0 to its target percent in sync.
+      const gaugeArc = cell.querySelector<SVGCircleElement>("[data-stat-gauge-arc]");
+      const gaugePct = Number(cell.dataset.statGauge ?? "");
+      if (gaugeArc && !Number.isNaN(gaugePct)) {
+        // Two-frame nudge so the transition fires.
+        requestAnimationFrame(() => {
+          gaugeArc.setAttribute("stroke-dasharray", `${gaugePct} 100`);
+        });
+      }
+      gsap.to(obj, {
+        v: numeric,
+        duration: 1.4,
+        ease: "power3.out",
+        onUpdate: () => {
+          valueEl.textContent = `${prefix}${obj.v.toFixed(decimals)}${suffix}`;
+        },
+        onComplete: () => {
+          valueEl.textContent = finalText;
+
+          // Bloomberg-ish ticker flicker — once every 4–9s the digits briefly
+          // jump ±1 then snap back, suggesting a live feed.
+          const cellEl = cell;
+          const scheduleFlicker = () => {
+            const wait = 4000 + Math.random() * 5000;
+            window.setTimeout(() => {
+              if (!cellEl.isConnected) return;
+              const offset = Math.random() < 0.5 ? -1 : 1;
+              const flickerVal = Math.max(0, numeric + offset * (numeric < 10 ? 0.1 : 1));
+              valueEl.textContent = `${prefix}${flickerVal.toFixed(decimals)}${suffix}`;
+              cellEl.classList.add("stat-flicker");
+              window.setTimeout(() => {
+                valueEl.textContent = finalText;
+                cellEl.classList.remove("stat-flicker");
+                scheduleFlicker();
+              }, 90 + Math.random() * 120);
+            }, wait);
+          };
+          scheduleFlicker();
+        },
+      });
+    });
+  });
+</script>

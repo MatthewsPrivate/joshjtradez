@@ -1,0 +1,354 @@
+---
+import Eyebrow from "../ui/Eyebrow.astro";
+import { PROOF, PROOF_FEATURED, PROOF_SECONDARY } from "../../lib/content";
+---
+
+<section id="results" class="section-rhythm proof-section">
+  <div class="container-edge">
+    <div class="proof-head">
+      <Eyebrow label={PROOF.eyebrow} align="center" />
+      <h2 class="t-h2 mt-6" style="text-align: center;" data-h2-reveal>{PROOF.heading}</h2>
+      <p class="t-body t-body-muted mt-6" style="text-align: center; margin-inline: auto; max-width: 60ch;">{PROOF.sub}</p>
+    </div>
+
+    <div class="proof-featured">
+      {
+        PROOF_FEATURED.map((c, i) => (
+          <button
+            type="button"
+            class="proof-card proof-card--featured"
+            data-proof-card
+            data-proof-index={i}
+            data-lightbox-trigger
+            data-lightbox-eyebrow={c.eyebrow ?? "Verified Document"}
+            data-lightbox-title={c.label}
+            data-lightbox-meta={c.meta.join(" · ")}
+            data-lightbox-image={c.image ?? ""}
+            aria-label={`Open ${c.label} in lightbox`}
+          >
+            <span class="t-mono proof-card-label">{c.label}</span>
+            <div class:list={["proof-card-image", c.image && "has-image"]}>
+              {c.image ? (
+                <>
+                  <img
+                    src={c.image}
+                    alt={c.label}
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.parentElement?.classList.remove('has-image'); this.parentElement?.classList.add('img-missing'); this.remove();"
+                  />
+                  <span class="img-missing-label">
+                    <span class="ph-label">FILE MISSING</span>
+                    <span class="t-mono" style="color: var(--white-muted)">Save to <code>{c.image}</code></span>
+                  </span>
+                </>
+              ) : (
+                <span class="ph-label">{c.label.toUpperCase()}</span>
+              )}
+            </div>
+            <div class="proof-card-meta">
+              {c.meta.map((m) => <span class="t-mono">{m}</span>)}
+            </div>
+            <span class="proof-card-shimmer" aria-hidden="true"></span>
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="proof-secondary">
+      {
+        PROOF_SECONDARY.map((c, i) => (
+          c.isViewAll ? (
+            <a href="#" class="proof-card proof-card--view-all" data-proof-card data-proof-index={i + PROOF_FEATURED.length}>
+              <span class="t-mono">{PROOF.viewAllSubLabel}</span>
+              <span class="t-h3 mt-3" style="color: var(--bg-base);">{PROOF.viewAllLabel}</span>
+              <span class="t-mono mt-2" style="color: rgba(10,10,11,0.7);">{c.meta[0]}</span>
+              <svg class="proof-arrow" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          ) : (
+            <button
+              type="button"
+              class="proof-card"
+              data-proof-card
+              data-proof-index={i + PROOF_FEATURED.length}
+              data-lightbox-trigger
+              data-lightbox-eyebrow={c.eyebrow ?? "Trade Ticket"}
+              data-lightbox-title={c.label}
+              data-lightbox-meta={c.meta.join(" · ")}
+              data-lightbox-image={c.image ?? ""}
+              aria-label={`Open ${c.label} in lightbox`}
+            >
+              <span class="t-mono proof-card-label">{c.label}</span>
+              <div class:list={["proof-card-image small", c.image && "has-image"]}>
+                {c.image ? (
+                  <>
+                    <img
+                      src={c.image}
+                      alt={c.label}
+                      loading="lazy"
+                      decoding="async"
+                      onerror="this.parentElement?.classList.remove('has-image'); this.parentElement?.classList.add('img-missing'); this.remove();"
+                    />
+                    <span class="img-missing-label">
+                      <span class="ph-label">FILE MISSING</span>
+                      <span class="t-mono" style="color: var(--white-muted)">Save to <code>{c.image}</code></span>
+                    </span>
+                  </>
+                ) : (
+                  <span class="ph-label">TICKET</span>
+                )}
+              </div>
+              <div class="proof-card-meta">
+                {c.meta.map((m) => <span class="t-mono">{m}</span>)}
+              </div>
+              <span class="proof-card-shimmer" aria-hidden="true"></span>
+            </button>
+          )
+        ))
+      }
+    </div>
+
+    <p class="proof-footnote">{PROOF.footnote}</p>
+  </div>
+</section>
+
+<style>
+  .proof-section { background: var(--bg-base); }
+
+  .proof-featured {
+    margin-top: 64px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 768px) {
+    .proof-featured { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  .proof-secondary {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 768px) {
+    .proof-secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .proof-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: left;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--rule);
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(229,179,68,0.06) 0%, transparent 60%),
+      var(--bg-elev-1);
+    color: var(--white);
+    cursor: pointer;
+    overflow: hidden;
+    text-decoration: none;
+    transform: translateZ(0);
+    transition: transform 320ms var(--ease-confident),
+                box-shadow 320ms var(--ease-confident),
+                border-color 320ms var(--ease-confident);
+  }
+  .proof-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(229, 179, 68, 0.45);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45), 0 0 28px rgba(229, 179, 68, 0.12);
+  }
+
+  .proof-card-label {
+    color: var(--gold-500);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  .proof-card-image {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    padding: 14px;
+    background:
+      radial-gradient(ellipse at center, rgba(229,179,68,0.05) 0%, transparent 70%),
+      linear-gradient(180deg, #0E0D0C 0%, #08070A 100%);
+    border: 1px solid rgba(229, 179, 68, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white-muted);
+    overflow: hidden;
+  }
+  /* Real cert image present — clean dark mat, contain the full document. */
+  .proof-card-image.has-image {
+    padding: 12px;
+    background:
+      radial-gradient(ellipse at center, rgba(229,179,68,0.08) 0%, transparent 70%),
+      linear-gradient(180deg, #0E0D0C 0%, #07070A 100%);
+    border: 1px solid rgba(229, 179, 68, 0.22);
+  }
+  .proof-card-image.has-image::after { display: none; }
+  .proof-card-image.has-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    border-radius: 6px;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+  }
+  .proof-card-image.has-image .img-missing-label { display: none; }
+
+  /* Fallback rendered when an <img> 404s (file not yet saved to /public/proof/). */
+  .proof-card-image.img-missing { background: var(--bg-elev-2); }
+  .proof-card-image.img-missing::after { display: none; }
+  .img-missing-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    padding: 16px;
+    width: 100%;
+  }
+  .img-missing-label code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: rgba(10, 10, 11, 0.6);
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: var(--gold-500);
+    border: 1px solid rgba(229, 179, 68, 0.3);
+    letter-spacing: 0.05em;
+  }
+  .proof-card-image::after {
+    /* Faint candle-line silhouette so empty slots still read as a chart. */
+    content: "";
+    position: absolute;
+    inset: 14px;
+    opacity: 0.45;
+    background:
+      linear-gradient(90deg, transparent 0%, transparent 8%, rgba(229,179,68,0.55) 8%, rgba(229,179,68,0.55) 12%, transparent 12%) no-repeat 8% 60% / 4% 22%,
+      linear-gradient(90deg, transparent 0%, transparent 22%, rgba(229,179,68,0.55) 22%, rgba(229,179,68,0.55) 26%, transparent 26%) no-repeat 22% 35% / 4% 36%,
+      linear-gradient(90deg, transparent 0%, transparent 36%, rgba(245,245,242,0.45) 36%, rgba(245,245,242,0.45) 40%, transparent 40%) no-repeat 36% 50% / 4% 28%,
+      linear-gradient(90deg, transparent 0%, transparent 50%, rgba(229,179,68,0.55) 50%, rgba(229,179,68,0.55) 54%, transparent 54%) no-repeat 50% 25% / 4% 50%,
+      linear-gradient(90deg, transparent 0%, transparent 64%, rgba(245,245,242,0.45) 64%, rgba(245,245,242,0.45) 68%, transparent 68%) no-repeat 64% 45% / 4% 30%,
+      linear-gradient(90deg, transparent 0%, transparent 78%, rgba(229,179,68,0.65) 78%, rgba(229,179,68,0.65) 82%, transparent 82%) no-repeat 78% 18% / 4% 60%,
+      linear-gradient(90deg, transparent 0%, transparent 92%, rgba(229,179,68,0.55) 92%, rgba(229,179,68,0.55) 96%, transparent 96%) no-repeat 92% 32% / 4% 40%;
+    pointer-events: none;
+  }
+  .proof-card-image.small { aspect-ratio: 16 / 10; }
+  .proof-card-image .ph-label {
+    position: relative;
+    z-index: 1;
+    background: rgba(10, 10, 11, 0.65);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .proof-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    color: var(--white-muted);
+    font-size: 11px;
+  }
+
+  .proof-card-shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(120deg, transparent 38%, rgba(255, 219, 128, 0.18) 50%, transparent 62%);
+    transform: translateX(-120%);
+  }
+
+  .proof-card--view-all {
+    background: linear-gradient(180deg, var(--gold-500), var(--gold-400));
+    color: var(--bg-base);
+    border: 1px solid rgba(255,255,255,0.18);
+    justify-content: space-between;
+    min-height: 100%;
+    transition: transform 250ms var(--ease-confident), box-shadow 250ms var(--ease-confident);
+  }
+  .proof-card--view-all:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 50px rgba(229,179,68,0.4);
+  }
+  .proof-card--view-all .t-mono { color: rgba(10,10,11,0.7); }
+  .proof-arrow { color: var(--bg-base); align-self: flex-end; }
+
+  .proof-footnote {
+    margin-top: 32px;
+    text-align: center;
+    color: var(--white-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  /* Pre-state for the fade-up reveal — gentle vertical lift, no 3D flip. */
+  .proof-section[data-armed] [data-proof-card] {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+</style>
+
+<script>
+  import { getGsap, prefersReducedMotion } from "../../lib/motion-config";
+
+  const section = document.querySelector<HTMLElement>("#results");
+  const cards = document.querySelectorAll<HTMLElement>("[data-proof-card]");
+
+  if (section && cards.length && !prefersReducedMotion()) {
+    section.setAttribute("data-armed", "true");
+
+    getGsap().then(({ gsap, ScrollTrigger }) => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 70%",
+          once: true,
+        },
+      });
+
+      tl.to(cards, {
+        y: 0,
+        opacity: 1,
+        duration: 0.7,
+        stagger: 0.08,
+        ease: "power2.out",
+        onComplete: () => {
+          // Sweep gold shimmer across each card surface as it lands.
+          cards.forEach((card, i) => {
+            const shimmer = card.querySelector<HTMLElement>(".proof-card-shimmer");
+            if (!shimmer) return;
+            gsap.fromTo(
+              shimmer,
+              { x: "-120%", opacity: 0 },
+              {
+                x: "120%",
+                opacity: 1,
+                duration: 0.7,
+                delay: i * 0.05,
+                ease: "power2.inOut",
+                onComplete: () => {
+                  if (shimmer) shimmer.style.opacity = "0";
+                },
+              },
+            );
+          });
+        },
+      });
+
+      ScrollTrigger.refresh();
+    });
+  }
+</script>

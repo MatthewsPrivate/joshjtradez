@@ -1,0 +1,369 @@
+---
+import Eyebrow from "../ui/Eyebrow.astro";
+import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
+---
+
+<section id="contact" class="section-rhythm contact-section">
+  <div class="container-edge">
+    <div class="contact-grid">
+      <div class="contact-form-col">
+        <Eyebrow label={CONTACT.eyebrow} />
+        <h2 class="t-h2 mt-6 contact-heading">
+          <span data-h2-reveal>{CONTACT.headingLead}</span>
+          {" "}
+          <span class="contact-heading-gold" data-h2-reveal>{CONTACT.headingGold}</span>
+        </h2>
+        <p class="t-body t-body-muted mt-6" style="max-width: 50ch;">{CONTACT.sub}</p>
+
+        <div class="form-shell mt-12" data-form-shell>
+          <!-- Decorative chart line drawn behind the form on enter (S06) -->
+          <svg class="chart-line" viewBox="0 0 600 200" aria-hidden="true" preserveAspectRatio="none">
+            <path
+              data-chart-line
+              d="M0 160 L60 130 L120 150 L180 90 L240 110 L300 60 L360 80 L420 40 L480 70 L540 30 L600 50"
+              stroke="rgba(229, 179, 68, 0.35)"
+              stroke-width="1.5"
+              fill="none"
+            />
+          </svg>
+
+          <form class="contact-form" data-contact-form novalidate>
+            {
+              CONTACT_FIELDS.map((field) => (
+                <label class="field" data-field>
+                  <span class="t-mono field-label">{field.label}{field.required && <span style="color: var(--gold-500)"> *</span>}</span>
+                  {field.type === "textarea" ? (
+                    <textarea
+                      name={field.name}
+                      rows={3}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                    />
+                  ) : field.type === "select" ? (
+                    <select name={field.name} required={field.required}>
+                      <option value="" disabled selected>Select…</option>
+                      {field.options.map((o) => <option value={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      name={field.name}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                    />
+                  )}
+                </label>
+              ))
+            }
+
+            <button type="submit" class="btn btn-gold-fill submit-btn" data-submit-btn data-magnetic data-magnetic-radius="160" data-magnetic-strength="0.28">{CONTACT.submitLabel}</button>
+
+            <p class="form-note t-mono">{CONTACT.formNote}</p>
+          </form>
+
+          <div class="form-thanks" data-form-thanks hidden>
+            <h3 class="t-h2" style="color: var(--gold-500);">{CONTACT.thanksHeading}</h3>
+            <p class="t-body t-body-muted mt-4" style="max-width: 36ch;">{CONTACT.thanksBody}</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="contact-benefits">
+        <p class="t-eyebrow">{CONTACT.benefitsHeading}</p>
+        <ul class="benefits-list mt-8">
+          {
+            CONTACT_BENEFITS.map((b, i) => (
+              <li class="benefit">
+                <span class="benefit-num t-mono">0{i + 1}</span>
+                <span class="t-body">{b}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <canvas class="confetti-canvas" data-confetti-canvas aria-hidden="true"></canvas>
+</section>
+
+<style>
+  .contact-section {
+    position: relative;
+    background: var(--bg-base);
+  }
+
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 64px;
+  }
+  @media (min-width: 1024px) {
+    .contact-grid {
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+      gap: 80px;
+      align-items: start;
+    }
+  }
+
+  .form-shell {
+    position: relative;
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    background: var(--bg-elev-1);
+    padding: 36px;
+    overflow: hidden;
+  }
+
+  .chart-line {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .contact-form {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  @media (min-width: 700px) {
+    .contact-form { grid-template-columns: 1fr 1fr; }
+    .field[data-field]:has(textarea),
+    .field[data-field]:nth-last-child(-n+2) { grid-column: 1 / -1; }
+    .submit-btn { grid-column: 1 / -1; }
+    .form-note  { grid-column: 1 / -1; }
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field-label { color: var(--white-muted); }
+
+  .contact-form input,
+  .contact-form select,
+  .contact-form textarea {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 15px;
+    transition: border-color 200ms var(--ease-confident),
+                box-shadow 200ms var(--ease-confident),
+                background 200ms var(--ease-confident);
+  }
+  .contact-form input::placeholder,
+  .contact-form textarea::placeholder {
+    color: var(--white-muted);
+  }
+  .contact-form input:focus,
+  .contact-form select:focus,
+  .contact-form textarea:focus {
+    outline: none;
+    border-color: var(--gold-500);
+    box-shadow: 0 0 0 4px rgba(229, 179, 68, 0.18);
+    background: var(--bg-elev-1);
+  }
+  .contact-form textarea { resize: vertical; min-height: 96px; }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 18px 28px;
+    font-size: 15px;
+  }
+
+  .form-note {
+    color: var(--white-muted);
+    font-size: 11px;
+  }
+
+  .form-thanks {
+    position: relative;
+    z-index: 1;
+    padding: 16px 0;
+  }
+
+  .contact-benefits {
+    border-left: 1px solid var(--rule);
+    padding-left: 32px;
+  }
+  @media (max-width: 1023px) {
+    .contact-benefits { border-left: none; padding-left: 0; }
+  }
+
+  .benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .benefit {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .benefit-num {
+    color: var(--gold-500);
+    font-size: 13px;
+    border: 1px solid var(--gold-500);
+    border-radius: 6px;
+    padding: 4px 6px;
+    text-align: center;
+  }
+
+  .confetti-canvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .contact-heading { display: flex; flex-wrap: wrap; gap: 0.25em; }
+  .contact-heading-gold { color: var(--gold-500); }
+
+  /* Pre-states */
+  .contact-section[data-armed] [data-form-shell] {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+
+  /* Submit-button "attention shake" — toggled by [data-shake] */
+  [data-submit-btn][data-shake] {
+    animation: btn-shake 0.45s ease-in-out;
+  }
+  @keyframes btn-shake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-2px); }
+    75%      { transform: translateX(2px); }
+  }
+</style>
+
+<script>
+  import { getGsap, prefersReducedMotion } from "../../lib/motion-config";
+
+  const section = document.querySelector<HTMLElement>(".contact-section");
+  const shell = document.querySelector<HTMLElement>("[data-form-shell]");
+  const chartLine = document.querySelector<SVGPathElement>("[data-chart-line]");
+  const form = document.querySelector<HTMLFormElement>("[data-contact-form]");
+  const thanks = document.querySelector<HTMLElement>("[data-form-thanks]");
+  const submitBtn = document.querySelector<HTMLButtonElement>("[data-submit-btn]");
+  const confettiCanvas = document.querySelector<HTMLCanvasElement>("[data-confetti-canvas]");
+
+  const reduced = prefersReducedMotion();
+
+  // ---- Form slide-up + chart-line draw on enter ----
+  if (section && shell && !reduced) {
+    section.setAttribute("data-armed", "true");
+
+    getGsap().then(({ gsap, ScrollTrigger }) => {
+      // Pre-set chart-line dasharray.
+      if (chartLine) {
+        const len = chartLine.getTotalLength();
+        gsap.set(chartLine, { strokeDasharray: len, strokeDashoffset: len });
+      }
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: shell,
+          start: "top 75%",
+          once: true,
+        },
+      });
+
+      tl.to(shell, { y: 0, opacity: 1, duration: 0.9, ease: "power3.out" });
+      if (chartLine) {
+        tl.to(
+          chartLine,
+          { strokeDashoffset: 0, duration: 1.2, ease: "power2.inOut" },
+          "<0.05",
+        );
+      }
+
+      ScrollTrigger.refresh();
+    });
+  }
+
+  // ---- Idle "attention" shake every 6s if untouched ----
+  if (submitBtn && form && !reduced) {
+    let touched = false;
+    const markTouched = () => { touched = true; };
+    form.addEventListener("input", markTouched, { once: true });
+    form.addEventListener("focusin", markTouched, { once: true });
+
+    const shakeTick = () => {
+      if (touched) return;
+      submitBtn.setAttribute("data-shake", "");
+      window.setTimeout(() => submitBtn.removeAttribute("data-shake"), 500);
+    };
+    window.setInterval(shakeTick, 6000);
+  }
+
+  // ---- Submit → confetti + crossfade to thank-you ----
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!confettiCanvas || !thanks || !form) return;
+
+    if (!reduced) {
+      const { default: confetti } = await import("canvas-confetti");
+      const myConfetti = confetti.create(confettiCanvas, {
+        resize: true,
+        useWorker: false,
+      });
+      // Burst pinned to the submit button's position.
+      const rect = submitBtn?.getBoundingClientRect();
+      const cRect = confettiCanvas.getBoundingClientRect();
+      const x = rect ? (rect.left + rect.width / 2 - cRect.left) / cRect.width : 0.5;
+      const y = rect ? (rect.top - cRect.top) / cRect.height : 0.5;
+
+      const goldHues = ["#E5B344", "#F2C75C", "#FFDB80", "#F5F5F2"];
+      myConfetti({
+        particleCount: 90,
+        spread: 80,
+        startVelocity: 50,
+        origin: { x, y },
+        colors: goldHues,
+        scalar: 0.9,
+      });
+      myConfetti({
+        particleCount: 40,
+        spread: 120,
+        startVelocity: 35,
+        origin: { x, y },
+        colors: goldHues,
+        scalar: 0.6,
+      });
+    }
+
+    // Crossfade form → thanks
+    const { gsap } = await getGsap();
+    if (reduced) {
+      form.style.display = "none";
+      thanks.removeAttribute("hidden");
+      thanks.style.opacity = "1";
+    } else {
+      gsap.to(form, {
+        opacity: 0,
+        y: -16,
+        duration: 0.4,
+        ease: "power2.in",
+        onComplete: () => {
+          form.style.display = "none";
+          thanks.removeAttribute("hidden");
+          gsap.fromTo(thanks, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" });
+        },
+      });
+    }
+  });
+</script>

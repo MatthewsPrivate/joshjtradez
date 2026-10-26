@@ -1,0 +1,268 @@
+---
+import { FOOTER, FOOTER_COLUMNS, SOCIAL_PLATFORMS } from "../../lib/content";
+
+const ICON_PATHS: Record<string, string> = {
+  youtube: "M23 7.2s-.2-1.6-.9-2.3c-.8-.9-1.7-.9-2.1-1C16.9 3.5 12 3.5 12 3.5s-4.9 0-8 .4c-.4.1-1.3.1-2.1 1C1.2 5.6 1 7.2 1 7.2S.8 9 .8 10.9v1.7C.8 14.5 1 16.4 1 16.4s.2 1.6.9 2.3c.8.9 2 .9 2.5 1 1.8.2 7.6.4 7.6.4s4.9 0 8-.4c.4-.1 1.3-.1 2.1-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.7C23.2 9 23 7.2 23 7.2zM10 14.6V8l6.2 3.3L10 14.6z",
+  instagram: "M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.2 2.3.4.6.2 1 .5 1.5 1s.8.9 1 1.5c.2.5.3 1.1.4 2.3.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.2 1.8-.4 2.3-.2.6-.5 1-1 1.5s-.9.8-1.5 1c-.5.2-1.1.3-2.3.4-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.2-2.3-.4-.6-.2-1-.5-1.5-1s-.8-.9-1-1.5c-.2-.5-.3-1.1-.4-2.3C2 15.6 2 15.2 2 12s0-3.6.1-4.8c.1-1.2.2-1.8.4-2.3.2-.6.5-1 1-1.5s.9-.8 1.5-1c.5-.2 1.1-.3 2.3-.4C8.4 2.2 8.8 2.2 12 2.2zm0 1.8c-3.2 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.2.8s-.6.7-.8 1.2c-.1.4-.3 1-.4 2.1C2.7 9.8 2.7 10.1 2.7 13.3s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.2s.7.6 1.2.8c.4.1 1 .3 2.1.4 1.2.1 1.5.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.2-.8s.6-.7.8-1.2c.1-.4.3-1 .4-2.1.1-1.2.1-1.5.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.2s-.7-.6-1.2-.8c-.4-.1-1-.3-2.1-.4-1.2-.1-1.5-.1-4.7-.1zm0 3.1a4.9 4.9 0 110 9.8 4.9 4.9 0 010-9.8zm0 1.8a3.1 3.1 0 100 6.2 3.1 3.1 0 000-6.2zm5-2.2a1.1 1.1 0 110 2.2 1.1 1.1 0 010-2.2z",
+  tiktok: "M21 8.4a8 8 0 01-4.6-1.5v6.8a6.4 6.4 0 11-6.4-6.4c.2 0 .5 0 .7.05V11a3.4 3.4 0 102.4 3.2V2h2.7a4.7 4.7 0 005.2 4.4v2z",
+  discord: "M20.3 4.5A18 18 0 0016.4 3l-.2.4a16.6 16.6 0 014 1.3 13.5 13.5 0 00-15.4 0 16.6 16.6 0 014-1.3L8.6 3a18 18 0 00-3.9 1.5C2 9.4 1 14.2 1.5 19a17.3 17.3 0 005.5 2.8c.4-.6.8-1.2 1.1-1.8a11 11 0 01-1.7-.8c.1-.1.3-.2.4-.3a12 12 0 0011.4 0c.1.1.3.2.4.3a11 11 0 01-1.7.8c.3.6.7 1.2 1.1 1.8a17.3 17.3 0 005.5-2.8c.6-5.3-.6-10.1-3.2-14.5zM9 16c-1 0-2-1-2-2.2 0-1.3.9-2.3 2-2.3s2 1 2 2.3c0 1.2-.9 2.2-2 2.2zm6 0c-1 0-2-1-2-2.2 0-1.3.9-2.3 2-2.3s2 1 2 2.3c0 1.2-.9 2.2-2 2.2z",
+};
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer" data-footer>
+  <div class="container-edge footer-inner">
+    <span class="footer-rule" data-footer-rule aria-hidden="true"></span>
+
+    <div class="footer-grid">
+      <div class="brand-block">
+        <a href="#top" class="footer-logo">{FOOTER.brand}</a>
+        <p class="t-mono footer-tagline">{FOOTER.tagline}</p>
+        <div class="footer-socials">
+          {
+            SOCIAL_PLATFORMS.map((p) => (
+              <a
+                href={p.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={p.name}
+                class="footer-social"
+                data-footer-social
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path d={ICON_PATHS[p.id]} fill="currentColor" />
+                </svg>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      {
+        FOOTER_COLUMNS.map((col) => (
+          <div class="footer-col">
+            <p class="t-eyebrow">{col.title}</p>
+            <ul class="footer-links mt-5">
+              {col.links.map((link) => (
+                <li><a href={link.href} class="footer-link" {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{link.label}</a></li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="footer-bottom">
+      <p class="t-mono">© {year} {FOOTER.brand}. {FOOTER.copyrightSuffix}</p>
+      <div class="footer-legal">
+        {
+          FOOTER.bottomLinks.map((link, i) => (
+            <>
+              {i > 0 && <span class="t-mono" style="color: var(--white-muted);">·</span>}
+              <a href={link.href} class="footer-link" {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{link.label}</a>
+            </>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    position: relative;
+    background: var(--bg-base);
+    padding-block: 96px 56px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .footer-inner {
+    position: relative;
+  }
+
+  .footer-rule {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-500), transparent);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  /* When animations haven't run yet, default to faintly visible so footer doesn't look broken without JS */
+  html.no-js .footer-rule { transform: scaleX(1); opacity: 0.4; }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px 24px;
+  }
+  @media (min-width: 768px) {
+    .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+  }
+
+  .brand-block { grid-column: 1 / -1; max-width: 360px; }
+  @media (min-width: 1024px) {
+    .brand-block { grid-column: auto; }
+  }
+
+  .footer-logo {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--white);
+    text-decoration: none;
+    font-size: 18px;
+  }
+
+  .footer-tagline {
+    margin-top: 16px;
+    color: var(--white-muted);
+    font-size: 11px;
+  }
+
+  .footer-socials {
+    margin-top: 24px;
+    display: flex;
+    gap: 10px;
+  }
+  .footer-social {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--rule);
+    background: var(--bg-elev-1);
+    color: var(--gold-500);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 200ms var(--ease-confident),
+                color 200ms var(--ease-confident),
+                background 200ms var(--ease-confident);
+  }
+  .footer-social:hover {
+    border-color: var(--gold-500);
+    color: var(--bg-base);
+    background: var(--gold-500);
+  }
+
+  .footer-col { min-width: 0; }
+  .footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-link {
+    position: relative;
+    display: inline-block;
+    color: var(--white-muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 150ms var(--ease-confident);
+  }
+  .footer-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 1px;
+    background: var(--gold-500);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 150ms var(--ease-confident);
+  }
+  .footer-link:hover { color: var(--white); }
+  .footer-link:hover::after { transform: scaleX(1); }
+
+  .footer-bottom {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--white-muted);
+  }
+  @media (min-width: 768px) {
+    .footer-bottom { flex-direction: row; align-items: center; }
+  }
+
+  .footer-legal {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Pre-states for entry animation */
+  [data-footer][data-armed] {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  [data-footer][data-armed] [data-footer-social] {
+    opacity: 0;
+    transform: rotate(-90deg);
+  }
+</style>
+
+<script>
+  import { getGsap, prefersReducedMotion } from "../../lib/motion-config";
+
+  const footer = document.querySelector<HTMLElement>("[data-footer]");
+  const rule = document.querySelector<HTMLElement>("[data-footer-rule]");
+  const socials = document.querySelectorAll<HTMLElement>("[data-footer-social]");
+
+  if (footer && !prefersReducedMotion()) {
+    footer.setAttribute("data-armed", "true");
+
+    getGsap().then(({ gsap, ScrollTrigger }) => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: footer,
+          start: "top 85%",
+          once: true,
+        },
+        defaults: { ease: "power3.out" },
+      });
+
+      tl.to(footer, { y: 0, opacity: 1, duration: 0.9 });
+      if (rule) {
+        tl.to(rule, { scaleX: 1, duration: 1.0, ease: "power2.out" }, "<0.1");
+      }
+      tl.to(
+        socials,
+        {
+          opacity: 1,
+          rotate: 360,
+          duration: 0.7,
+          stagger: 0.08,
+          ease: "back.out(1.6)",
+        },
+        "<0.2",
+      );
+
+      // Hover spin — re-triggered each time
+      socials.forEach((s) => {
+        s.addEventListener("mouseenter", () => {
+          gsap.fromTo(s, { rotate: 0 }, { rotate: 360, duration: 0.6, ease: "power2.out" });
+        });
+      });
+
+      ScrollTrigger.refresh();
+    });
+  } else if (footer) {
+    // Reduced motion — show rule statically.
+    if (rule) rule.style.transform = "scaleX(1)";
+  }
+</script>

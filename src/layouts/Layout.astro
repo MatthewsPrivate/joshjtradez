@@ -1,0 +1,48 @@
+---
+import "../styles/globals.css";
+import SmoothScroll from "../components/motion/SmoothScroll.astro";
+import AmbientMotion from "../components/motion/AmbientMotion.astro";
+import VisualPolish from "../components/motion/VisualPolish.astro";
+import Lightbox from "../components/ui/Lightbox.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "JoshJTradez — Trading Smarter. Winning Bigger.",
+  description = "Real trades. Real results. JoshJTradez brings institutional-grade strategies to everyday traders.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <!-- Private review phase: remove this rule when ready for search indexing. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0A0A0B" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Premium type stack via Google Fonts (swap for self-hosted /public/fonts/ later). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+    <Lightbox />
+    <SmoothScroll />
+    <AmbientMotion />
+    <VisualPolish />
+  </body>
+</html>

@@ -1,0 +1,278 @@
+---
+// Global motion layer that runs on every page:
+//   • Cursor spotlight  — soft gold radial halo that lerps after the cursor
+//   • Magnetic CTAs     — any [data-magnetic] subtly pulls toward the cursor
+//   • 3D tilt cards     — any [data-tilt] gets mouse-tracked rotateX/Y depth
+//   • H2 mask reveals   — any [data-h2-reveal] splits + curtain-rises on scroll
+//
+// All four bail under prefers-reduced-motion or on touch devices.
+---
+
+<div id="cursor-spotlight" data-cursor-spotlight aria-hidden="true"></div>
+
+<style is:global>
+  #cursor-spotlight {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 720px;
+    height: 720px;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at center,
+        rgba(229, 179, 68, 0.16) 0%,
+        rgba(229, 179, 68, 0.06) 30%,
+        transparent 65%);
+    transform: translate3d(-9999px, -9999px, 0) translate(-50%, -50%);
+    mix-blend-mode: screen;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 350ms var(--ease-confident);
+    will-change: transform;
+  }
+  #cursor-spotlight[data-on] { opacity: 1; }
+
+  /* Magnetic CTAs use the `translate` CSS property so existing transforms
+     (hover lift, tilt, animations) keep working independently. */
+  [data-magnetic] {
+    translate: var(--mx, 0px) var(--my, 0px);
+    transition: translate 600ms var(--ease-confident);
+  }
+  [data-magnetic][data-magnetized] {
+    transition: translate 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* H2 curtain-rise reveal */
+  [data-h2-reveal] { display: inline-block; }
+  [data-h2-reveal] .rv-word {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    line-height: 1.05;
+    padding-bottom: 0.06em;        /* preserve descenders during clip */
+  }
+  [data-h2-reveal] .rv-word + .rv-word { margin-left: 0.28em; }
+  [data-h2-reveal] .rv-char {
+    display: inline-block;
+    transform: translateY(110%);
+    will-change: transform;
+  }
+  [data-h2-reveal][data-armed] .rv-char {
+    transform: translateY(0);
+    transition: transform 700ms var(--ease-confident);
+    transition-delay: calc(var(--i, 0) * 22ms);
+  }
+
+  /* Tilt: respect transform-style on the card itself */
+  [data-tilt] {
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  /* Touch / reduced-motion safety net — kill spotlight visibility */
+  @media (prefers-reduced-motion: reduce), (hover: none) {
+    #cursor-spotlight { display: none; }
+    [data-magnetic] { translate: 0 0 !important; }
+  }
+</style>
+
+<script>
+  import { prefersReducedMotion } from "../../lib/motion-config";
+
+  const reduced = prefersReducedMotion();
+  const isTouch = matchMedia("(hover: none)").matches;
+  const off = reduced || isTouch;
+
+  /* ============================================================
+     1. Cursor spotlight — single fixed element following cursor
+     ============================================================ */
+  if (!off) {
+    const spot = document.querySelector<HTMLElement>("[data-cursor-spotlight]");
+    if (spot) {
+      let tx = 0, ty = 0, x = 0, y = 0;
+      let active = false;
+
+      const onMove = (e: MouseEvent) => {
+        tx = e.clientX;
+        ty = e.clientY;
+        if (!active) {
+          spot.setAttribute("data-on", "");
+          active = true;
+        }
+      };
+      const onLeave = () => {
+        spot.removeAttribute("data-on");
+        active = false;
+      };
+
+      window.addEventListener("mousemove", onMove, { passive: true });
+      window.addEventListener("mouseout", (e) => {
+        if (!e.relatedTarget) onLeave();
+      });
+
+      const tick = () => {
+        x += (tx - x) * 0.16;
+        y += (ty - y) * 0.16;
+        spot.style.transform =
+          `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+  }
+
+  /* ============================================================
+     2. Magnetic CTAs — pull element toward cursor when within radius
+     ============================================================ */
+  if (!off) {
+    document.querySelectorAll<HTMLElement>("[data-magnetic]").forEach((el) => {
+      const radius = Number(el.dataset.magneticRadius ?? "120");
+      const strength = Number(el.dataset.magneticStrength ?? "0.32");
+      let raf = 0;
+      let curX = 0, curY = 0, tgtX = 0, tgtY = 0;
+      let inField = false;
+
+      const tick = () => {
+        curX += (tgtX - curX) * 0.18;
+        curY += (tgtY - curY) * 0.18;
+        el.style.setProperty("--mx", `${curX.toFixed(2)}px`);
+        el.style.setProperty("--my", `${curY.toFixed(2)}px`);
+        if (Math.abs(tgtX - curX) > 0.05 || Math.abs(tgtY - curY) > 0.05 || inField) {
+          raf = requestAnimationFrame(tick);
+        } else {
+          raf = 0;
+          el.removeAttribute("data-magnetized");
+        }
+      };
+
+      const onMove = (e: MouseEvent) => {
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < radius) {
+          if (!inField) {
+            inField = true;
+            el.setAttribute("data-magnetized", "");
+          }
+          tgtX = dx * strength;
+          tgtY = dy * strength;
+        } else if (inField) {
+          inField = false;
+          tgtX = 0;
+          tgtY = 0;
+        }
+        if (!raf && (inField || tgtX !== 0 || tgtY !== 0)) raf = requestAnimationFrame(tick);
+      };
+
+      const onLeave = () => {
+        inField = false;
+        tgtX = 0;
+        tgtY = 0;
+        if (!raf) raf = requestAnimationFrame(tick);
+      };
+
+      window.addEventListener("mousemove", onMove, { passive: true });
+      el.addEventListener("mouseleave", onLeave);
+    });
+  }
+
+  /* ============================================================
+     3. 3D tilt cards — rotateX/Y based on cursor position over card
+     ============================================================ */
+  if (!off) {
+    document.querySelectorAll<HTMLElement>("[data-tilt]").forEach((el) => {
+      const max = Number(el.dataset.tiltMax ?? "10");          // deg
+      const perspective = el.dataset.tiltPerspective ?? "1100px";
+      let raf = 0;
+      let cRX = 0, cRY = 0, cZ = 0;
+      let tRX = 0, tRY = 0, tZ = 0;
+
+      const apply = () => {
+        cRX += (tRX - cRX) * 0.18;
+        cRY += (tRY - cRY) * 0.18;
+        cZ  += (tZ  - cZ ) * 0.18;
+        // Compose with whatever the card's CSS does via custom props.
+        el.style.transform =
+          `perspective(${perspective}) ` +
+          `rotateX(${cRX.toFixed(2)}deg) ` +
+          `rotateY(${cRY.toFixed(2)}deg) ` +
+          `translateZ(${cZ.toFixed(2)}px)`;
+
+        if (
+          Math.abs(tRX - cRX) > 0.04 ||
+          Math.abs(tRY - cRY) > 0.04 ||
+          Math.abs(tZ - cZ) > 0.04
+        ) {
+          raf = requestAnimationFrame(apply);
+        } else {
+          raf = 0;
+          if (tRX === 0 && tRY === 0 && tZ === 0) el.style.transform = "";
+        }
+      };
+
+      const onMove = (e: MouseEvent) => {
+        const rect = el.getBoundingClientRect();
+        const px = (e.clientX - rect.left) / rect.width;
+        const py = (e.clientY - rect.top) / rect.height;
+        tRY = (px - 0.5) * (max * 2);
+        tRX = -(py - 0.5) * (max * 2);
+        tZ = 14;
+        if (!raf) raf = requestAnimationFrame(apply);
+      };
+
+      const onLeave = () => {
+        tRX = 0; tRY = 0; tZ = 0;
+        if (!raf) raf = requestAnimationFrame(apply);
+      };
+
+      el.addEventListener("mousemove", onMove);
+      el.addEventListener("mouseleave", onLeave);
+    });
+  }
+
+  /* ============================================================
+     4. H2 curtain reveal — split + arm on scroll-into-view
+     ============================================================ */
+  document.querySelectorAll<HTMLElement>("[data-h2-reveal]").forEach((h) => {
+    if (h.dataset.h2Split === "done") return;
+    const text = h.textContent?.trim() ?? "";
+    h.textContent = "";
+    h.dataset.h2Split = "done";
+
+    let i = 0;
+    for (const word of text.split(/\s+/)) {
+      const wordEl = document.createElement("span");
+      wordEl.className = "rv-word";
+      for (const ch of word) {
+        const span = document.createElement("span");
+        span.className = "rv-char";
+        span.style.setProperty("--i", String(i++));
+        span.textContent = ch;
+        wordEl.appendChild(span);
+      }
+      h.appendChild(wordEl);
+    }
+
+    if (reduced) {
+      h.setAttribute("data-armed", "");
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries, obs) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            (e.target as HTMLElement).setAttribute("data-armed", "");
+            obs.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(h);
+  });
+</script>

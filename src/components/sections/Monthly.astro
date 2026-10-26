@@ -1,0 +1,303 @@
+---
+import Eyebrow from "../ui/Eyebrow.astro";
+import { MONTHLY_RETURNS } from "../../lib/content";
+
+const formatRand = (n: number) =>
+  "R" + n.toLocaleString("en-ZA", { maximumFractionDigits: 0 });
+---
+
+<section id="monthly" class="section-rhythm monthly-section">
+  <div class="container-edge">
+    <div class="monthly-head">
+      <Eyebrow label="Monthly Record" align="center" />
+      <h2 class="t-h2 mt-6" style="text-align: center;">PERFORMANCE BOARD</h2>
+      <p class="t-body t-body-muted mt-6" style="text-align: center; margin-inline: auto; max-width: 60ch;">
+        Twelve months. No cherry-picked weeks. Every bar below is a trading month documented on Josh's prop account.
+      </p>
+    </div>
+
+    <div class="bar-chart" data-bar-chart aria-label="Monthly returns chart">
+      <div class="chart-grid" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="bars">
+        {
+          MONTHLY_RETURNS.map((m) => (
+            <div class="bar-slot">
+              <div
+                class:list={["bar", m.isBest && "bar--best"]}
+                data-bar
+                data-bar-pct={m.pct}
+                style={`--bar-pct: ${m.pct}%;`}
+                aria-label={`${m.month}: ${formatRand(m.amountRand)}`}
+              >
+                {m.isBest && (
+                  <svg class="crown" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" data-crown>
+                    <path d="M3 7l5 4 4-7 4 7 5-4-2 11H5L3 7z" fill="currentColor"/>
+                  </svg>
+                )}
+                <span class="bar-amount t-mono">{formatRand(m.amountRand)}</span>
+              </div>
+              <span class="bar-label t-mono">{m.short}</span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="monthly-grid">
+      {
+        MONTHLY_RETURNS.map((m, i) => (
+          <button
+            type="button"
+            class:list={["month-tile", m.isBest && "month-tile--best"]}
+            data-month-tile
+            data-month-index={i}
+            data-lightbox-trigger
+            data-lightbox-eyebrow="Monthly Statement"
+            data-lightbox-title={`${m.month} · ${formatRand(m.amountRand)}`}
+            data-lightbox-meta={`+${m.pct}% return · documented prop account`}
+            aria-label={`${m.month} statement: ${formatRand(m.amountRand)}`}
+          >
+            <span class="t-mono month-tile-label">{m.short}</span>
+            <span class="month-tile-amount t-h3">{formatRand(m.amountRand)}</span>
+            <span class="t-mono" style="color: var(--white-muted)">+{m.pct}%</span>
+            <span class="month-tile-tooltip" role="tooltip">{formatRand(m.amountRand)}</span>
+          </button>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .monthly-section { background: var(--bg-base); }
+
+  .bar-chart {
+    position: relative;
+    margin-top: 64px;
+    padding: 48px 24px 32px;
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    background: var(--bg-elev-1);
+  }
+
+  .chart-grid {
+    position: absolute;
+    inset: 48px 24px 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .chart-grid span {
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .bars {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 8px;
+    align-items: end;
+    height: 320px;
+  }
+  @media (max-width: 640px) {
+    .bars { height: 220px; gap: 4px; }
+  }
+  @media (max-width: 480px) {
+    .bars { height: 180px; gap: 2px; }
+    .bar-label { font-size: 8px; }
+    .bar-chart { padding: 32px 12px 24px; }
+  }
+
+  .bar-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+  }
+
+  .bar {
+    position: relative;
+    width: 100%;
+    height: var(--bar-pct);
+    background: linear-gradient(180deg, var(--gold-500), rgba(229, 179, 68, 0.3));
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    transform-origin: bottom;
+  }
+
+  .bar--best {
+    background: linear-gradient(180deg, var(--gold-300), var(--gold-500));
+    box-shadow: 0 0 24px var(--gold-glow);
+  }
+
+  .crown {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--gold-300);
+  }
+
+  .bar-amount {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: var(--white-muted);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 200ms var(--ease-confident);
+  }
+  .bar:hover .bar-amount,
+  .bar:focus-within .bar-amount { opacity: 1; }
+
+  .bar-label {
+    color: var(--white-muted);
+    font-size: 10px;
+  }
+
+  .monthly-grid {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .monthly-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .monthly-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  }
+
+  .month-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid var(--rule);
+    background: var(--bg-elev-1);
+    color: var(--white);
+    cursor: pointer;
+    text-align: left;
+    transition: transform 200ms var(--ease-confident),
+                border-color 200ms var(--ease-confident),
+                background 200ms var(--ease-confident);
+  }
+  .month-tile:hover {
+    transform: translateY(-3px);
+    border-color: var(--gold-500);
+    background: var(--bg-elev-2);
+  }
+  .month-tile--best {
+    border-color: var(--gold-500);
+    background: linear-gradient(180deg, rgba(229, 179, 68, 0.12), rgba(229, 179, 68, 0));
+  }
+  .month-tile-label { color: var(--gold-500); }
+  .month-tile-amount { font-size: clamp(20px, 2vw, 26px); }
+
+  .month-tile-tooltip {
+    position: absolute;
+    inset: auto auto calc(100% + 8px) 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--bg-base);
+    color: var(--gold-500);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--gold-500);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms var(--ease-confident),
+                transform 150ms var(--ease-confident);
+  }
+  .month-tile:hover .month-tile-tooltip,
+  .month-tile:focus-visible .month-tile-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Pre-states */
+  .monthly-section[data-armed] [data-bar] { transform: scaleY(0); }
+  .monthly-section[data-armed] [data-crown] { opacity: 0; transform: translate(-50%, -20px); }
+  .monthly-section[data-armed] [data-month-tile] { opacity: 0; transform: translateY(-40px); }
+</style>
+
+<script>
+  import { getGsap, prefersReducedMotion } from "../../lib/motion-config";
+
+  const section = document.querySelector<HTMLElement>(".monthly-section");
+  const bars = document.querySelectorAll<HTMLElement>("[data-bar]");
+  const tiles = document.querySelectorAll<HTMLElement>("[data-month-tile]");
+  const crown = document.querySelector<HTMLElement>("[data-crown]");
+
+  if (section && bars.length && !prefersReducedMotion()) {
+    section.setAttribute("data-armed", "true");
+
+    getGsap().then(({ gsap, ScrollTrigger }) => {
+      // Bars grow upward L→R with a soft elastic ease.
+      gsap.to(bars, {
+        scaleY: 1,
+        duration: 0.4,
+        stagger: 0.08,
+        ease: "elastic.out(1, 0.6)",
+        scrollTrigger: {
+          trigger: section,
+          start: "top 70%",
+          once: true,
+        },
+      });
+
+      // Crown drops onto the best bar then spins once.
+      if (crown) {
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: section,
+            start: "top 60%",
+            once: true,
+          },
+        });
+        // Match the bars stagger landing for the best month
+        tl.to(crown, {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: "back.out(2)",
+          delay: bars.length * 0.08 + 0.1,
+        });
+        tl.to(crown, {
+          rotate: 360,
+          duration: 0.9,
+          ease: "power2.inOut",
+        });
+      }
+
+      // Monthly tiles drop from above with a single bounce.
+      gsap.to(tiles, {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.05,
+        ease: "bounce.out",
+        scrollTrigger: {
+          trigger: ".monthly-grid",
+          start: "top 80%",
+          once: true,
+        },
+      });
+
+      ScrollTrigger.refresh();
+    });
+  }
+</script>

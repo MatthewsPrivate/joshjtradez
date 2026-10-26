@@ -1,0 +1,40 @@
+---
+// Lenis smooth scroll + GSAP ScrollTrigger sync.
+// Skipped entirely for users who prefer reduced motion.
+---
+
+<script>
+  import Lenis from "lenis";
+  import { prefersReducedMotion, getGsap } from "../../lib/motion-config";
+
+  if (!prefersReducedMotion()) {
+    const lenis = new Lenis({
+      duration: 1.1,
+      smoothWheel: true,
+      lerp: 0.085,
+    });
+
+    // Bridge Lenis frames to GSAP ScrollTrigger so pinned/triggered animations stay in sync.
+    getGsap().then(({ gsap, ScrollTrigger }) => {
+      lenis.on("scroll", ScrollTrigger.update);
+      gsap.ticker.add((time) => lenis.raf(time * 1000));
+      gsap.ticker.lagSmoothing(0);
+      ScrollTrigger.refresh();
+    });
+
+    // Honour anchor links — Lenis intercepts hash navigation.
+    document.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest("a[href^='#']") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const id = anchor.getAttribute("href");
+      if (!id || id === "#") return;
+      const node = document.querySelector(id);
+      if (!node) return;
+      e.preventDefault();
+      lenis.scrollTo(node as HTMLElement, { offset: -80 });
+    });
+
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+  }
+</script>

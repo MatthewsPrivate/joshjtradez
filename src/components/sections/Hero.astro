@@ -1,0 +1,232 @@
+---
+import Eyebrow from "../ui/Eyebrow.astro";
+
+---
+
+<section id="top" class="hero-section">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="hero-canvas" aria-hidden="true"><canvas class="hero-particles" data-hero-particles></canvas></div>
+  <div class="container-edge hero-inner">
+    <div class="hero-copy">
+      <Eyebrow label="A sharper approach to the markets" />
+      <h1>Trade with<br /><span class="hero-gold">an edge.</span></h1>
+      <p class="hero-description">Real trades. Real results. A clear strategy, a disciplined mindset, and a community moving forward together.</p>
+      <div class="hero-actions">
+        <a href="#community" class="btn btn-gold-fill">Find your community <span aria-hidden="true">↗</span></a>
+        <a href="#results" class="hero-results">Explore the results <span aria-hidden="true">↘</span></a>
+      </div>
+      <div class="hero-principles"><span>Strategy first</span><span>Built on discipline</span><span>Always learning</span></div>
+    </div>
+
+    <div class="hero-visual" data-video-frame>
+      <div class="visual-topline t-mono"><span><i></i> THE JOSHJTRADEZ APPROACH</span><span>01 / 03</span></div>
+      <div class="visual-orbit visual-orbit-one" aria-hidden="true"></div>
+      <div class="visual-orbit visual-orbit-two" aria-hidden="true"></div>
+
+      <svg class="hero-chart" viewBox="0 0 600 420" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="chart-fill" x1="300" y1="80" x2="300" y2="420" gradientUnits="userSpaceOnUse"><stop stop-color="#E5B344" stop-opacity=".22" /><stop offset="1" stop-color="#E5B344" stop-opacity="0" /></linearGradient>
+          <linearGradient id="chart-stroke" x1="0" x2="600"><stop stop-color="#806020" /><stop offset=".55" stop-color="#E5B344" /><stop offset="1" stop-color="#FFF0BD" /></linearGradient>
+        </defs>
+        <path d="M0 350 40 330 75 345 110 290 145 310 180 260 220 275 255 215 285 240 325 170 360 195 400 130 440 150 480 90 520 110 565 50 600 65V420H0Z" fill="url(#chart-fill)" />
+        <path class="chart-draw" d="M0 350 40 330 75 345 110 290 145 310 180 260 220 275 255 215 285 240 325 170 360 195 400 130 440 150 480 90 520 110 565 50 600 65" stroke="url(#chart-stroke)" stroke-width="2" pathLength="1" />
+        <g stroke="#E5B344" opacity=".5"><path d="M75 295v85m70-130v100m75-140v110m65-140v95m75-145v95m80-145v100m80-150v100" /><path d="M69 325h12v25H69zm70-45h12v35h-12zm75-45h12v40h-12zm65-25h12v35h-12zm75-50h12v35h-12zm80-55h12v45h-12zm80-40h12v40h-12z" fill="#E5B344" /></g>
+      </svg>
+      <div class="visual-wordmark" aria-hidden="true">JJ<span>↗</span></div>
+      <div class="visual-note"><span class="t-mono">THE PROCESS</span><strong>Less noise.<br />More conviction.</strong><span class="visual-note-line"></span><span class="t-mono">PLAN. EXECUTE. REFINE.</span></div>
+      <a class="hero-discover" href="#about" style="text-decoration:none" aria-label="Explore the JoshJTradez approach"><span class="discover-icon" aria-hidden="true">↗</span><span>Discover the approach<small>MEET JOSHJTRADEZ</small></span></a>
+      <span class="visual-caption t-mono">ILLUSTRATIVE MARKET STUDY</span>
+    </div>
+    <a href="#about" class="scroll-cue"><span class="scroll-cue-line"></span><span class="t-mono">Scroll to discover</span><span aria-hidden="true">↓</span></a>
+  </div>
+</section>
+
+<style>
+  .hero-section { position: relative; isolation: isolate; overflow: hidden; background: radial-gradient(ellipse at 80% 35%, #35291655, transparent 55%), var(--bg-base); }
+  .hero-grid { position: absolute; inset: 0; z-index: -1; background-image: linear-gradient(#ffffff04 1px, transparent 1px), linear-gradient(90deg, #ffffff04 1px, transparent 1px); background-size: 80px 80px; mask-image: linear-gradient(black, transparent 95%); }
+  .hero-canvas, .hero-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+  .hero-inner { display: grid; grid-template-columns: 1.08fr 1fr; align-items: center; gap: 40px; padding-block: clamp(70px, 9vw, 130px) 32px; }
+  .hero-copy { min-width: 0; position: relative; z-index: 2; }
+  .hero-copy :global(.t-eyebrow) { font-size: 10px; letter-spacing: .14em; }
+  h1 { margin: 30px 0 26px; font-size: clamp(68px, 7.7vw, 108px); line-height: .98; font-weight: 600; letter-spacing: -.065em; }
+  .hero-gold { background: linear-gradient(110deg, #fff1c2, #e8bb58 45%, #a97b28); background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-description { max-width: 40ch; color: #aaa9a3; font-size: 17px; line-height: 1.8; }
+  .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 34px; }
+  .hero-actions .btn { padding: 16px 23px; gap: 20px; }
+  .hero-results { color: #deded5; font-size: 13px; text-decoration: none; border-bottom: 1px solid #ffffff26; padding-block: 10px; }
+  .hero-results span { margin-left: 10px; color: var(--gold-400); }
+  .hero-results:hover { color: var(--gold-400); }
+  .hero-principles { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 38px; color: #86867f; font-size: 10px; letter-spacing: .035em; }
+  .hero-principles span { display: flex; align-items: center; gap: 7px; }
+  .hero-principles span::before { content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--gold-500); }
+  .hero-visual { position: relative; min-width: 0; height: 510px; border: 1px solid #e5b34430; border-radius: 8px; background: radial-gradient(ellipse at 50% 40%, #76511b26, transparent 65%), linear-gradient(150deg, #1c1c1d, #101011); box-shadow: 0 40px 90px #0006, inset 0 1px #ffffff08; }
+  .visual-topline { position: absolute; top: 22px; inset-inline: 22px; display: flex; justify-content: space-between; gap: 8px; color: #8f8b7f; font-size: 8px; z-index: 2; }
+  .visual-topline span:first-child { display: flex; align-items: center; gap: 7px; }
+  .visual-topline i { width: 5px; height: 5px; border-radius: 50%; background: var(--gold-400); box-shadow: 0 0 10px var(--gold-glow); }
+  .visual-orbit { position: absolute; border: 1px solid #e5b34416; border-radius: 50%; pointer-events: none; }
+  .visual-orbit-one { width: 320px; height: 320px; top: 65px; left: calc(50% - 160px); }
+  .visual-orbit-two { width: 410px; height: 410px; top: 20px; left: calc(50% - 205px); border-style: dashed; animation: orbit-drift 80s linear infinite; }
+  .hero-3d { position: absolute; inset: 40px -40px 45px; opacity: .7; pointer-events: none; }
+  .hero-chart { position: absolute; width: 100%; height: 75%; bottom: 65px; opacity: .6; }
+  .chart-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: chart-draw 2.8s .2s var(--ease-confident) forwards; }
+  .visual-wordmark { position: absolute; top: 90px; left: 35px; font-size: 130px; font-weight: 800; letter-spacing: -.1em; line-height: 1; color: #e5b3440c; }
+  .visual-wordmark span { font-size: 80px; }
+  .visual-note { position: absolute; right: -16px; top: 155px; width: 190px; padding: 22px; border: 1px solid #e5b34435; border-radius: 6px; background: #161614d9; backdrop-filter: blur(16px); box-shadow: 0 20px 50px #0005; animation: note-float 7s ease-in-out infinite; }
+  .visual-note .t-mono { font-size: 8px; color: #b4a689; letter-spacing: .12em; }
+  .visual-note strong { display: block; font-size: 24px; line-height: 1.2; font-weight: 500; letter-spacing: -.035em; margin-top: 13px; }
+  .visual-note-line { display: block; height: 1px; background: linear-gradient(90deg, #e5b34460, transparent); margin: 18px 0 10px; }
+  .hero-discover { position: absolute; bottom: 24px; left: 24px; display: flex; align-items: center; gap: 13px; text-align: left; color: #eee8da; background: transparent; border: 0; font: inherit; font-size: 12px; cursor: pointer; z-index: 2; }
+  .discover-icon { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #e5b34470; border-radius: 50%; color: var(--gold-400); font-size: 22px; transition: background .25s, color .25s, rotate .25s; }
+  .hero-discover:hover .discover-icon { background: var(--gold-400); color: #14130e; rotate: 45deg; }
+  .hero-discover small { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 8px; letter-spacing: .13em; color: #8f8b7f; }
+  .visual-caption { position: absolute; right: 20px; bottom: 36px; font-size: 7px; color: #777267; writing-mode: vertical-rl; }
+  .scroll-cue { grid-column: 1/-1; display: flex; align-items: center; gap: 14px; margin-top: 36px; color: #777970; text-decoration: none; }
+  .scroll-cue .t-mono { font-size: 9px; }
+  .scroll-cue-line { width: 42px; height: 1px; background: #e5b34455; }
+  .scroll-cue > :last-child { margin-left: auto; color: var(--gold-500); }
+  @keyframes chart-draw { to { stroke-dashoffset: 0; } }
+  @keyframes note-float { 50% { transform: translateY(-9px); } }
+  @keyframes orbit-drift { to { transform: rotate(360deg); } }
+  @media (max-width: 1023px) { .hero-inner { gap: 28px; } h1 { font-size: clamp(62px, 8vw, 90px); } .hero-visual { height: 460px; } .visual-note { right: -8px; width: 165px; padding: 18px; } .hero-principles { gap: 10px; } }
+  @media (max-width: 767px) { .hero-inner { grid-template-columns: 1fr; padding-top: 60px; gap: 44px; } h1 { font-size: clamp(66px, 13vw, 96px); } .hero-description { font-size: 16px; max-width: 38ch; } .hero-visual { height: 370px; margin-right: 8px; } .visual-note { top: 120px; } .visual-orbit-two { width: 300px; height: 300px; left: calc(50% - 150px); } .visual-orbit-one { width: 240px; height: 240px; left: calc(50% - 120px); } .scroll-cue { margin-top: 0; } .hero-actions { gap: 18px; } }
+  @media (prefers-reduced-motion: reduce) { .chart-draw { stroke-dashoffset: 0; } }
+</style>
+<script>
+  import { prefersReducedMotion } from "../../lib/motion-config";
+
+  const particles = document.querySelector<HTMLCanvasElement>("[data-hero-particles]");
+
+
+  // Ambient particle field with constellation lines — runs everywhere
+  // (mobile fallback + desktop ambient backdrop behind the 3D scene).
+  if (particles && !prefersReducedMotion()) {
+    const ctx = particles.getContext("2d");
+    if (ctx) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      type Dot = { x: number; y: number; vx: number; vy: number; r: number; a: number };
+      let dots: Dot[] = [];
+      const mouse = { x: -9999, y: -9999 };
+
+      const resize = () => {
+        const r = particles.getBoundingClientRect();
+        particles.width = r.width * dpr;
+        particles.height = r.height * dpr;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        const count = Math.min(70, Math.floor(r.width / 18));
+        dots = Array.from({ length: count }, () => ({
+          x: Math.random() * r.width,
+          y: Math.random() * r.height,
+          vx: (Math.random() - 0.5) * 0.18,
+          vy: -0.05 - Math.random() * 0.10,
+          r: 0.6 + Math.random() * 1.6,
+          a: 0.18 + Math.random() * 0.45,
+        }));
+      };
+      resize();
+
+      const onMove = (e: MouseEvent) => {
+        const r = particles.getBoundingClientRect();
+        mouse.x = e.clientX - r.left;
+        mouse.y = e.clientY - r.top;
+      };
+      const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+      window.addEventListener("mousemove", onMove, { passive: true });
+      window.addEventListener("mouseout", (e) => { if (!e.relatedTarget) onLeave(); });
+
+      const LINK_DIST = 110;
+      const MOUSE_DIST = 160;
+
+      const tick = () => {
+        const r = particles.getBoundingClientRect();
+        ctx.clearRect(0, 0, r.width, r.height);
+
+        // Constellation lines — connect any two dots within LINK_DIST.
+        ctx.lineWidth = 1;
+        for (let i = 0; i < dots.length; i++) {
+          for (let j = i + 1; j < dots.length; j++) {
+            const a = dots[i]!, b = dots[j]!;
+            const dx = a.x - b.x, dy = a.y - b.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < LINK_DIST * LINK_DIST) {
+              const t = 1 - Math.sqrt(d2) / LINK_DIST;
+              ctx.strokeStyle = `rgba(229, 179, 68, ${t * 0.18})`;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Cursor magnet — a soft gold rope from each nearby particle to the cursor.
+        if (mouse.x > -1000) {
+          for (const d of dots) {
+            const dx = d.x - mouse.x, dy = d.y - mouse.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < MOUSE_DIST * MOUSE_DIST) {
+              const t = 1 - Math.sqrt(d2) / MOUSE_DIST;
+              ctx.strokeStyle = `rgba(255, 219, 128, ${t * 0.4})`;
+              ctx.beginPath();
+              ctx.moveTo(d.x, d.y);
+              ctx.lineTo(mouse.x, mouse.y);
+              ctx.stroke();
+              // Slight drift toward the cursor for a magnetised feel.
+              d.vx += (-dx / Math.sqrt(d2 + 0.001)) * 0.012 * t;
+              d.vy += (-dy / Math.sqrt(d2 + 0.001)) * 0.012 * t;
+            }
+          }
+        }
+
+        for (const d of dots) {
+          d.x += d.vx;
+          d.y += d.vy;
+          // Velocity damping so the cursor magnet doesn't compound forever.
+          d.vx *= 0.985;
+          d.vy = d.vy * 0.985 - 0.01;
+          if (d.y < -4) { d.y = r.height + 4; d.x = Math.random() * r.width; }
+          if (d.x < -4) d.x = r.width + 4;
+          if (d.x > r.width + 4) d.x = -4;
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(229, 179, 68, ${d.a})`;
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      window.addEventListener("resize", resize);
+    }
+  }
+
+  // Hero parallax — eyebrow + scroll cue lift away as you scroll past.
+  if (!prefersReducedMotion()) {
+    const heroSection = document.querySelector<HTMLElement>("#top");
+    const eyebrow = heroSection?.querySelector<HTMLElement>(".eb");
+    const scrollCue = heroSection?.querySelector<HTMLElement>(".scroll-cue");
+    const frame = document.querySelector<HTMLElement>("[data-video-frame]");
+
+    if (heroSection) {
+      let raf = 0;
+      const onScroll = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          const y = Math.max(0, -heroSection.getBoundingClientRect().top);
+          const h = heroSection.offsetHeight;
+          const t = Math.min(1, y / h);
+          if (eyebrow)   eyebrow.style.transform   = `translateY(${(-t * 80).toFixed(1)}px)`;
+          if (scrollCue) scrollCue.style.transform = `translateY(${(-t * 60).toFixed(1)}px)`;
+          if (frame) {
+            frame.style.transform = `translateY(${(t * 30).toFixed(1)}px) scale(${(1 - t * 0.04).toFixed(3)})`;
+            frame.style.opacity = String(Math.max(0.35, 1 - t * 0.6));
+          }
+          raf = 0;
+        });
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    }
+  }
+
+</script>

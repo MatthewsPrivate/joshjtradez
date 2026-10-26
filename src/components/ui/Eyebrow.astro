@@ -1,0 +1,68 @@
+---
+interface Props {
+  label: string;
+  align?: "left" | "center";
+  class?: string;
+}
+
+const { label, align = "left", class: className = "" } = Astro.props;
+const alignClass = align === "center" ? "eb-center" : "eb-left";
+---
+
+<p class={`t-eyebrow eb ${alignClass} ${className}`} data-eyebrow>
+  <span class="eb-line eb-line--lead" aria-hidden="true"></span>
+  <span class="eb-text">{label}</span>
+  <span class="eb-line eb-line--tail" aria-hidden="true"></span>
+</p>
+
+<style>
+  .eb {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .eb.eb-center {
+    display: flex;
+    justify-content: center;
+  }
+  .eb-text { white-space: nowrap; }
+
+  .eb-line {
+    display: inline-block;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-500));
+    width: 0;
+    transition: width 700ms var(--ease-confident);
+  }
+  .eb-line--lead { background: linear-gradient(90deg, transparent, var(--gold-500)); }
+  .eb-line--tail { background: linear-gradient(90deg, var(--gold-500), transparent); }
+
+  /* Left-aligned: only the trailing line shows.
+     Centred: both lines show (the lead reverses gradient direction). */
+  .eb-left .eb-line--lead { display: none; }
+
+  .eb[data-armed] .eb-line--tail { width: 32px; }
+  .eb-center[data-armed] .eb-line--lead { width: 32px; }
+</style>
+
+<script>
+  const ebs = document.querySelectorAll<HTMLElement>("[data-eyebrow]");
+  if (ebs.length) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      ebs.forEach((e) => e.setAttribute("data-armed", ""));
+    } else {
+      const io = new IntersectionObserver(
+        (entries, obs) => {
+          for (const en of entries) {
+            if (en.isIntersecting) {
+              (en.target as HTMLElement).setAttribute("data-armed", "");
+              obs.unobserve(en.target);
+            }
+          }
+        },
+        { threshold: 0.4 },
+      );
+      ebs.forEach((e) => io.observe(e));
+    }
+  }
+</script>

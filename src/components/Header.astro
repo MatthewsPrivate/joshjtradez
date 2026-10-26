@@ -1,0 +1,155 @@
+---
+import { NAV_ITEMS, HEADER } from "../lib/content";
+---
+
+<header class="sticky top-0 z-50 site-header">
+  <div class="container-edge flex items-center justify-between gap-6 py-4 lg:py-5">
+    <a href="#top" class="site-logo" aria-label={`${HEADER.logo} home`}>{HEADER.logo}</a>
+
+    <nav class="hidden lg:flex items-center gap-8" aria-label="Primary">
+      {
+        NAV_ITEMS.map((item) => (
+          <a href={item.href} class="nav-link">
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <a href={HEADER.joinCtaHref} class="btn btn-gold-fill btn-pill-sm hidden sm:inline-flex">{HEADER.joinCtaLabel}</a>
+
+      <button
+        type="button"
+        class="lg:hidden ham-btn"
+        aria-label="Toggle menu"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        data-mobile-toggle
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="lg:hidden mobile-menu" data-mobile-menu hidden>
+    <nav class="container-edge flex flex-col gap-1 py-6" aria-label="Mobile">
+      {
+        NAV_ITEMS.map((item) => (
+          <a href={item.href} class="mobile-link" data-mobile-link>
+            {item.label}
+          </a>
+        ))
+      }
+      <a href={HEADER.joinCtaHref} class="btn btn-gold-fill mt-4 sm:hidden" data-mobile-link>{HEADER.joinCtaLabel}</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    background: rgba(10, 10, 11, 0.72);
+    -webkit-backdrop-filter: saturate(150%) blur(14px);
+    backdrop-filter: saturate(150%) blur(14px);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .site-logo {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--white);
+    text-decoration: none;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .nav-link {
+    position: relative;
+    font-size: 13px;
+    color: var(--white-muted);
+    text-decoration: none;
+    padding: 4px 0;
+    transition: color 150ms var(--ease-confident);
+  }
+  .nav-link:hover { color: var(--white); }
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+    height: 1px;
+    background: var(--gold-500);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 150ms var(--ease-confident);
+  }
+  .nav-link:hover::after,
+  .nav-link:focus-visible::after { transform: scaleX(1); }
+
+  .ham-btn {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--gold-500);
+    border-radius: 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .ham-btn span {
+    width: 18px;
+    height: 1px;
+    background: var(--gold-500);
+    transition: transform 200ms var(--ease-confident),
+                opacity 200ms var(--ease-confident);
+  }
+  .ham-btn[aria-expanded="true"] span:nth-child(1) { transform: translateY(5px) rotate(45deg); }
+  .ham-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .ham-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-5px) rotate(-45deg); }
+
+  .mobile-menu {
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--rule);
+  }
+  .mobile-link {
+    display: block;
+    padding: 12px 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--white);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+  }
+  .mobile-link:last-of-type { border-bottom: none; }
+</style>
+
+<script>
+(function() {
+  const btn = document.querySelector<HTMLButtonElement>("[data-mobile-toggle]");
+  const mobileMenu = document.querySelector<HTMLElement>("[data-mobile-menu]");
+  if (btn && mobileMenu) {
+    const close = () => {
+      btn.setAttribute("aria-expanded", "false");
+      mobileMenu.setAttribute("hidden", "");
+    };
+    btn.addEventListener("click", () => {
+      const open = btn.getAttribute("aria-expanded") === "true";
+      if (open) close();
+      else {
+        btn.setAttribute("aria-expanded", "true");
+        mobileMenu.removeAttribute("hidden");
+      }
+    });
+    mobileMenu.querySelectorAll<HTMLAnchorElement>("[data-mobile-link]").forEach((a) =>
+      a.addEventListener("click", close),
+    );
+  }
+})();
+</script>

@@ -1,0 +1,64 @@
+---
+import HeroScene from "../motion/HeroScene";
+import { INTRO } from "../../lib/content";
+---
+<section id="intro" class="intro-section" aria-label="JoshJTradez introduction" data-intro>
+  <div class="container-edge intro-container">
+    <div class="intro-heading"><span class="t-mono" data-intro-text>THE OPENING SESSION</span><span class="intro-preview t-mono" data-intro-text>{INTRO.videoSrc ? "THE STORY BEHIND THE TRADES" : "INTRO FILM · COMING SOON"}</span></div>
+    <div class="intro-screen" data-intro-screen>
+      <div class="intro-scene" aria-hidden="true"><HeroScene client:media="(min-width: 768px) and (prefers-reduced-motion: no-preference)" /></div>
+      <div class="intro-fallback" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+      {INTRO.videoSrc && <video class="intro-video" data-intro-video src={INTRO.videoSrc} poster={INTRO.poster || undefined} autoplay muted playsinline preload="metadata" aria-label="JoshJTradez intro film" />}
+      <div class="intro-vignette" aria-hidden="true"></div>
+      <div class="intro-screen-top t-mono"><span data-intro-text>JOSHJTRADEZ / ORIGINALS</span><span data-intro-text>VOL. 01</span></div>
+      <div class="intro-film-title"><span class="intro-kicker t-mono" data-intro-text>THE MINDSET. THE PROCESS. THE JOURNEY.</span><p><span data-intro-text>Every trade</span><span class="intro-title-gold" data-intro-text>starts here.</span></p></div>
+      <button type="button" class="intro-play" data-intro-play aria-label={INTRO.videoSrc ? "Watch intro film with sound" : "Preview the screen shatter transition"}><span class="intro-play-ring" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="m9 5 11 7-11 7z" /></svg></span><span class="t-mono" data-intro-text>{INTRO.videoSrc ? "WATCH THE FILM" : "ENTER THE EXPERIENCE"}</span></button>
+      <div class="intro-screen-bottom t-mono"><span data-intro-text>{INTRO.videoSrc ? "SOUND OFF · PRESS PLAY TO LISTEN" : "YOUR NEXT CHAPTER IS ON THE OTHER SIDE"}</span><span class="intro-time" data-intro-text>00:00 <span aria-hidden="true">/</span> {INTRO.videoSrc ? "INTRO" : "PREVIEW"}</span></div>
+      <span class="intro-edge intro-edge-tl" aria-hidden="true"></span><span class="intro-edge intro-edge-br" aria-hidden="true"></span>
+    </div>
+    <div class="intro-footer"><p class="intro-hint" data-intro-status aria-live="polite">{INTRO.videoSrc ? "Watch the story. Then step into the markets." : "A first look at what's next. Press play to break through."}</p><button type="button" data-intro-skip class="intro-skip">Skip intro <span aria-hidden="true">↗</span></button></div>
+  </div>
+</section>
+<canvas class="intro-fracture" data-intro-fracture aria-hidden="true" hidden></canvas>
+<style>
+  .intro-section { position: relative; isolation: isolate; min-height: calc(100svh - 82px); display: grid; align-items: center; background: radial-gradient(ellipse at 50% 25%, #3b2b1240, transparent 65%), #08080a; overflow: hidden; }
+  .intro-container { padding-block: 40px 30px; }
+  .intro-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; color: #c8ae75; }
+  .intro-heading .t-mono { font-size: 9px; letter-spacing: .18em; }
+  .intro-preview { display: flex; align-items: center; gap: 9px; color: #8d887b; }
+  .intro-preview::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #e5b344; box-shadow: 0 0 10px #e5b34488; }
+  .intro-screen { position: relative; width: 100%; aspect-ratio: 1.95; min-height: 400px; max-height: 680px; overflow: hidden; border: 1px solid #e5b34445; border-radius: 5px; background: radial-gradient(ellipse at 65% 40%, #3a2c1755, transparent 65%), #0c0c0e; box-shadow: 0 35px 100px #0009, 0 0 80px #e5b34408, inset 0 0 0 5px #ffffff02; perspective: 1000px; }
+  .intro-scene { position: absolute; inset: -8% -10% -8% 15%; opacity: .85; }
+  .intro-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 23px; transform: perspective(600px) rotateY(-20deg) rotateZ(-14deg); opacity: .55; }
+  .intro-fallback span { position: relative; width: 18px; height: 90px; background: linear-gradient(90deg, #6b491b, #e8bf60 50%, #79521f); border: 1px solid #f1cc7755; box-shadow: 12px 15px 30px #0007, 0 0 30px #e5b34410; animation: intro-drift 6s ease-in-out infinite; }
+  .intro-fallback span::after { content: ''; position: absolute; width: 1px; height: 160%; background: #d7af56; top: -30%; left: 50%; }
+  .intro-fallback span:nth-child(2) { height: 145px; margin-top: -30px; animation-delay: -.8s; }
+  .intro-fallback span:nth-child(3) { height: 190px; margin-top: -60px; animation-delay: -1.6s; }
+  .intro-fallback span:nth-child(4) { height: 110px; margin-top: -90px; animation-delay: -2.4s; }
+  .intro-fallback span:nth-child(5) { height: 160px; margin-top: -120px; animation-delay: -3.2s; }
+  .intro-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+  .intro-vignette { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(90deg, #08080ae0, transparent 75%), linear-gradient(0deg, #08080aeb, transparent 40%, transparent 75%, #08080a99); }
+  .intro-screen-top, .intro-screen-bottom { position: absolute; z-index: 3; inset-inline: 30px; display: flex; justify-content: space-between; gap: 16px; font-size: 8px; color: #b9ac91; letter-spacing: .14em; }
+  .intro-screen-top { top: 26px; }.intro-screen-bottom { bottom: 25px; font-size: 7px; color: #837e72; }
+  .intro-film-title { position: absolute; left: 6%; bottom: 18%; z-index: 3; pointer-events: none; }
+  .intro-kicker { font-size: 8px; letter-spacing: .15em; color: #b6a174; }
+  .intro-film-title p { margin: 18px 0 0; font-size: clamp(40px, 5.6vw, 78px); font-weight: 500; line-height: 1.02; letter-spacing: -.055em; }
+  .intro-film-title p > span { display: block; }.intro-title-gold { color: #e6c277; }
+  .intro-play { position: absolute; top: 43%; left: 70%; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 18px; transform: translate(-50%, -50%); background: none; color: #eed9aa; border: 0; cursor: pointer; white-space: nowrap; }
+  .intro-play > .t-mono { font-size: 8px; letter-spacing: .18em; }
+  .intro-play-ring { position: relative; display: grid; place-items: center; width: 86px; height: 86px; border: 1px solid #e5b34490; border-radius: 50%; background: #e5b34412; backdrop-filter: blur(5px); box-shadow: 0 0 55px #e5b34418, inset 0 0 25px #e5b3440a; transition: background .3s, color .3s, scale .4s; }
+  .intro-play-ring::before { content: ''; position: absolute; inset: -11px; border-radius: 50%; border: 1px solid #e5b34425; animation: intro-breathe 4s ease-in-out infinite; }
+  .intro-play:hover .intro-play-ring { background: #e5b344; color: #131009; scale: 1.07; }.intro-play:focus-visible { outline-offset: 18px; }
+  .intro-edge { position: absolute; z-index: 4; width: 28px; height: 28px; pointer-events: none; border-color: #f0ce85; border-style: solid; }.intro-edge-tl { inset: 0 auto auto 0; border-width: 2px 0 0 2px; }.intro-edge-br { inset: auto 0 0 auto; border-width: 0 2px 2px 0; }
+  .intro-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 22px; }.intro-hint { color: #86857d; font-size: 12px; }.intro-skip { background: none; border: 0; color: #c8bd9f; font: inherit; font-size: 12px; cursor: pointer; padding: 10px 0 10px 12px; white-space: nowrap; }.intro-skip span { margin-left: 14px; color: #e5b344; }.intro-skip:hover { color: #ffe6aa; }
+  .intro-fracture { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 200; pointer-events: none; }.intro-fracture[hidden] { display: none; }
+  .intro-section[data-playing] .intro-film-title, .intro-section[data-playing] .intro-play, .intro-section[data-playing] .intro-vignette, .intro-section[data-playing] .intro-screen-bottom { opacity: 0; pointer-events: none; }.intro-film-title, .intro-play, .intro-vignette { transition: opacity .5s; }
+  @keyframes intro-drift { 50% { transform: translateY(-14px) rotateY(12deg); } } @keyframes intro-breathe { 50% { scale: 1.1; opacity: .35; } }
+  @media (min-width: 768px) { .intro-fallback { opacity: .15; } }
+  @media (max-width: 767px) { .intro-container { padding-block: 25px; }.intro-section { min-height: calc(100svh - 73px); }.intro-heading { align-items: flex-start; }.intro-heading .t-mono { font-size: 7px; letter-spacing: .1em; }.intro-preview { max-width: 145px; text-align: right; }.intro-screen { aspect-ratio: 3/4; min-height: 430px; max-height: 650px; }.intro-screen-top, .intro-screen-bottom { inset-inline: 18px; font-size: 6px; }.intro-screen-top { top: 20px; }.intro-screen-bottom { bottom: 20px; }.intro-time { display: none; }.intro-film-title { left: 8%; bottom: 17%; }.intro-film-title p { font-size: clamp(38px, 10vw, 66px); }.intro-kicker { font-size: 6px; }.intro-play { top: 32%; left: 50%; }.intro-play-ring { width: 70px; height: 70px; }.intro-fallback { gap: 17px; inset: 0 0 20%; opacity: .35; }.intro-footer { gap: 16px; }.intro-hint { font-size: 10px; max-width: 23ch; line-height: 1.6; } }
+  @media (prefers-reduced-motion: reduce) { .intro-fallback span, .intro-play-ring::before { animation: none; } }
+</style>
+<script>
+  import { setupIntro } from "../../lib/intro-transition";
+  setupIntro();
+</script>
