@@ -253,7 +253,7 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     name: "Discord",
     blurb: "Live signals & alerts · Weekly mentor resources · Members-only platform",
     cta: "Join Free",
-    href: "https://discord.gg/nbf9AZBPv",
+    href: "https://discord.gg/qVA2cBCQnR",
     highlight: true,
   },
 ];
@@ -289,7 +289,7 @@ export const FOOTER_COLUMNS = [
       { label: "YouTube",       href: "https://youtube.com/@joshjtradez" },
       { label: "Instagram",     href: "https://www.instagram.com/joshjtradez" },
       { label: "TikTok",        href: "https://www.tiktok.com/@joshjtradez" },
-      { label: "Discord",       href: "https://discord.gg/nbf9AZBPv" },
+      { label: "Discord",       href: "https://discord.gg/qVA2cBCQnR" },
     ],
   },
   {
