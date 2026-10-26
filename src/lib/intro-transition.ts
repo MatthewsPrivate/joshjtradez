@@ -1,7 +1,7 @@
 import { prefersReducedMotion } from "./motion-config";
 
 type Point = { x: number; y: number };
-type Fragment = { points: Point[]; cx: number; cy: number; vx: number; vy: number; spin: number; delay: number };
+type Fragment = { points: Point[]; cx: number; cy: number; vx: number; vy: number; spin: number; delay: number; path: Path2D; left: number; top: number; width: number; height: number };
 type ScrollBridge = { scrollTo: (target: HTMLElement | number, options: { offset: number; immediate: boolean; force: boolean }) => void; stop: () => void; start: () => void };
 
 export function setupIntro() {
@@ -63,7 +63,7 @@ export function setupIntro() {
     if (prefersReducedMotion() || !ctx) { revealLanding(); finish(); return; }
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
     overlay!.width = Math.round(width * dpr);
     overlay!.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -82,6 +82,7 @@ export function setupIntro() {
     // Freeze the actual film or WebGL scene into the glass texture when available.
     const source = video && video.readyState >= 2 && !video.error ? video : screen!.querySelector('canvas');
     if (source) {
+      if (source instanceof HTMLCanvasElement) source.dispatchEvent(new Event("intro:capture-frame"));
       const bounds = source.getBoundingClientRect();
       paint.save(); paint.beginPath(); paint.rect(box.left, box.top, box.width, box.height); paint.clip();
       try { paint.drawImage(source, bounds.left, bounds.top, bounds.width, bounds.height); } catch { /* Static cover remains available. */ }
@@ -141,7 +142,10 @@ export function setupIntro() {
       const cx = points.reduce((sum, point) => sum + point.x, 0) / 3;
       const cy = points.reduce((sum, point) => sum + point.y, 0) / 3;
       const distance = Math.hypot(cx - impact.x, cy - impact.y);
-      fragments.push({ points, cx, cy, vx: (cx - impact.x) * (1.1 + Math.random()), vy: (cy - impact.y) * 1.1 - 80 - Math.random() * 110, spin: (Math.random() - .5) * 5, delay: distance / Math.hypot(width, height) * .12 });
+      const path = new Path2D(); points.forEach((point, i) => i ? path.lineTo(point.x, point.y) : path.moveTo(point.x, point.y)); path.closePath();
+      const left = Math.min(...points.map(p => p.x)), top = Math.min(...points.map(p => p.y));
+      const width = Math.max(...points.map(p => p.x)) - left, height = Math.max(...points.map(p => p.y)) - top;
+      fragments.push({ points, path, left, top, width, height, cx, cy, vx: (cx - impact.x) * (1.1 + Math.random()), vy: (cy - impact.y) * 1.1 - 80 - Math.random() * 110, spin: (Math.random() - .5) * 5, delay: distance / Math.hypot(width, height) * .12 });
     }
     for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
       const a = vertices[row]![col]!, b = vertices[row]![col + 1]!, c = vertices[row + 1]![col]!, d = vertices[row + 1]![col + 1]!;
@@ -155,10 +159,11 @@ export function setupIntro() {
     // The destination moves underneath the opaque glass before the first gap opens.
     revealTimer = window.setTimeout(revealLanding, 260);
     finishTimer = window.setTimeout(() => { revealLanding(); finish(); }, 2400);
-    const started = performance.now();
+    let started: number | undefined;
     function tick(now: number) {
       if (!ctx || !busy) return;
-      const elapsed = (now - started) / 1000;
+      started ??= now;
+      const elapsed = Math.max(0, (now - started) / 1000);
       ctx.clearRect(0, 0, width, height);
       if (elapsed < .38) {
         drawTexture();
@@ -177,6 +182,7 @@ export function setupIntro() {
       } else {
         for (const piece of fragments) {
           const t = Math.max(0, elapsed - .38 - piece.delay);
+          if (t > 1.3) continue;
           const flight = t * t * 1.4;
           const angle = piece.spin * t;
           // Perspective squash, spin and depth simulate rigid glass facets.
@@ -187,10 +193,10 @@ export function setupIntro() {
           ctx.globalAlpha = Math.max(0, 1 - Math.max(0, t - .45) / .85);
           ctx.translate(piece.cx + piece.vx * flight, piece.cy + piece.vy * flight + 320 * t * t);
           ctx.rotate(angle); ctx.scale(sx, sy); ctx.translate(-piece.cx, -piece.cy);
-          ctx.beginPath(); piece.points.forEach((point, i) => i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.closePath(); ctx.clip();
-          drawTexture();
-          ctx.fillStyle = `rgba(245,205,120,${Math.abs(Math.sin(angle)) * .12})`; ctx.fill();
-          ctx.strokeStyle = 'rgba(255,224,160,.75)'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+          ctx.clip(piece.path);
+          ctx.drawImage(texture, piece.left * dpr, piece.top * dpr, piece.width * dpr, piece.height * dpr, piece.left, piece.top, piece.width, piece.height);
+          ctx.fillStyle = `rgba(245,205,120,${Math.abs(Math.sin(angle)) * .12})`; ctx.fill(piece.path);
+          ctx.strokeStyle = 'rgba(255,224,160,.75)'; ctx.lineWidth = 1; ctx.stroke(piece.path); ctx.restore();
         }
       }
       if (elapsed < 1.85) frame = requestAnimationFrame(tick);

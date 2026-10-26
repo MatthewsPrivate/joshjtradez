@@ -43,3 +43,25 @@ export async function getGsap() {
   gsap.registerPlugin(ScrollTrigger);
   return { gsap, ScrollTrigger };
 }
+
+// Match the browser's refresh rate, but do no work offscreen or in hidden tabs.
+export function animateWhileVisible(element: Element, draw: (delta: number, now: number) => void): () => void {
+  let visible = false;
+  let raf = 0;
+  let previous = 0;
+  const tick = (now: number) => {
+    const delta = previous ? Math.min((now - previous) / 1000, 0.05) : 1 / 60;
+    previous = now;
+    draw(delta, now);
+    raf = requestAnimationFrame(tick);
+  };
+  const sync = () => {
+    cancelAnimationFrame(raf);
+    previous = 0;
+    if (visible && !document.hidden) raf = requestAnimationFrame(tick);
+  };
+  const observer = new IntersectionObserver(([entry]) => { visible = !!entry?.isIntersecting; sync(); });
+  observer.observe(element);
+  document.addEventListener("visibilitychange", sync);
+  return () => { cancelAnimationFrame(raf); observer.disconnect(); document.removeEventListener("visibilitychange", sync); };
+}

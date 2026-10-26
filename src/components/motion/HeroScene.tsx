@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Environment,
   ContactShadows,
   Lightformer,
-  MeshReflectorMaterial,
+  PerformanceMonitor,
   RoundedBox,
   Sparkles,
 } from "@react-three/drei";
 import {
   EffectComposer,
   Bloom,
-  DepthOfField,
+
   Vignette,
-  GodRays,
+
 } from "@react-three/postprocessing";
-import { BlendFunction, KernelSize } from "postprocessing";
+import { KernelSize } from "postprocessing";
 import * as THREE from "three";
 
 type Phase = "drift" | "shatter";
@@ -295,19 +295,7 @@ function Floor() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.4, 0]} receiveShadow>
       <planeGeometry args={[80, 80]} />
-      <MeshReflectorMaterial
-        blur={[300, 100]}
-        resolution={1024}
-        mixBlur={1}
-        mixStrength={18}
-        roughness={0.75}
-        depthScale={1}
-        minDepthThreshold={0.4}
-        maxDepthThreshold={1.4}
-        color="#0B0A09"
-        metalness={0.6}
-        mirror={0}
-      />
+      <meshStandardMaterial color="#0B0A09" metalness={0.55} roughness={0.42} />
     </mesh>
   );
 }
@@ -317,15 +305,15 @@ function Floor() {
 // =============================================================================
 function Rig({ phase }: { phase: Phase }) {
   const start = useRef<number | null>(null);
-  useFrame((state) => {
+  useFrame((state, dt) => {
     if (start.current === null) start.current = state.clock.elapsedTime;
     const elapsed = state.clock.elapsedTime - start.current;
     const intro = Math.min(1, elapsed / 2.8);
     const eased = 1 - Math.pow(1 - intro, 3);
 
     if (phase === "shatter") {
-      if (state.camera.position.z > 2.5) state.camera.position.z -= 0.07;
-      state.camera.position.y = Math.max(-1, state.camera.position.y - 0.008);
+      if (state.camera.position.z > 2.5) state.camera.position.z -= 4.2 * dt;
+      state.camera.position.y = Math.max(-1, state.camera.position.y - 0.48 * dt);
       state.camera.lookAt(0, 0.4, 0);
     } else {
       const t = state.clock.elapsedTime;
@@ -346,7 +334,7 @@ function Rig({ phase }: { phase: Phase }) {
 // =============================================================================
 // SCENE
 // =============================================================================
-function Scene({ phase, onSunReady }: { phase: Phase; onSunReady: (m: THREE.Mesh) => void }) {
+function Scene({ phase }: { phase: Phase }) {
   const pillars = useMemo(() => makePillars(), []);
   const shards = useMemo(() => makeShards(), []);
 
@@ -362,10 +350,6 @@ function Scene({ phase, onSunReady }: { phase: Phase; onSunReady: (m: THREE.Mesh
         position={[6, 10, 6]}
         intensity={2.4}
         color="#FFE9A8"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0001}
-        shadow-normalBias={0.04}
       >
         <orthographicCamera attach="shadow-camera" args={[-14, 14, 14, -14, 0.1, 36]} />
       </directionalLight>
@@ -374,13 +358,13 @@ function Scene({ phase, onSunReady }: { phase: Phase; onSunReady: (m: THREE.Mesh
 
       {/* God-ray source — bright sphere planted behind the scene. GodRays
           post-process samples the screen position of this mesh. */}
-      <mesh ref={(m) => { if (m) onSunReady(m); }} position={[0, 7, -16]}>
+      <mesh position={[0, 7, -16]}>
         <sphereGeometry args={[2.6, 32, 32]} />
         <meshBasicMaterial color="#FFE9A8" toneMapped={false} />
       </mesh>
 
       {/* Studio HDRI built from lightformers — feeds the gold + crystal reflections. */}
-      <Environment resolution={256} frames={1}>
+      <Environment resolution={128} frames={1}>
         <Lightformer intensity={4}   color="#FFDB80" position={[-5, 4, -5]} scale={[5, 5, 1]} />
         <Lightformer intensity={3.2} color="#FFE9A8" position={[5, 6, -3]}  scale={[5, 5, 1]} />
         <Lightformer form="ring" intensity={3} color="#FFDB80" position={[0, 8, 0]} scale={[8, 8, 1]} />
@@ -400,7 +384,7 @@ function Scene({ phase, onSunReady }: { phase: Phase; onSunReady: (m: THREE.Mesh
       ))}
 
       <Floor />
-      <ContactShadows
+      <ContactShadows frames={1} resolution={256}
         position={[0, -2.39, 0]}
         opacity={0.85}
         scale={24}
@@ -409,16 +393,26 @@ function Scene({ phase, onSunReady }: { phase: Phase; onSunReady: (m: THREE.Mesh
         color="#000000"
       />
 
-      <Sparkles count={80} scale={[24, 16, 12]} size={2.2} speed={0.18} color="#FFDB80" opacity={0.7} />
-      <Sparkles count={40} scale={[18, 12, 10]} size={5}   speed={0.08} color="#E5B344" opacity={0.32} />
+      <Sparkles count={45} scale={[24, 16, 12]} size={2.2} speed={0.18} color="#FFDB80" opacity={0.7} />
+      <Sparkles count={20} scale={[18, 12, 10]} size={5}   speed={0.08} color="#E5B344" opacity={0.32} />
     </>
   );
 }
 
 // =============================================================================
-// EXPORT — Canvas + GodRays/Bloom/DOF/Vignette stack.
+// EXPORT — Adaptive-resolution Canvas with lightweight bloom.
 // Same Phase API + shatter event timing as the previous scene.
 // =============================================================================
+// Render only when the fracture needs a snapshot; avoid preserving every GPU buffer.
+function SnapshotBridge() {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    const capture = () => gl.render(scene, camera);
+    gl.domElement.addEventListener("intro:capture-frame", capture);
+    return () => gl.domElement.removeEventListener("intro:capture-frame", capture);
+  }, [gl, scene, camera]);
+  return null;
+}
 export default function HeroScene() {
   const viewport = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
@@ -431,7 +425,7 @@ export default function HeroScene() {
     return () => { observer.disconnect(); document.removeEventListener("visibilitychange", visibility); };
   }, []);
   const [phase, setPhase] = useState<Phase>("drift");
-  const [sun, setSun] = useState<THREE.Mesh | null>(null);
+  const [dpr, setDpr] = useState(1.25);
   const fired = useRef(false);
 
   useEffect(() => {
@@ -453,12 +447,11 @@ export default function HeroScene() {
 
   return (
     <div ref={viewport} style={{ position: "absolute", inset: 0 }}><Canvas frameloop={visible ? "always" : "never"}
-      shadows
       camera={{ position: [0, 1, 22], fov: 42 }}
-      dpr={[1, 2]}
+      dpr={dpr}
       gl={{
         antialias: true,
-        preserveDrawingBuffer: true, // Freeze the rendered scene into the screen-fracture texture.
+
         alpha: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
@@ -467,33 +460,18 @@ export default function HeroScene() {
       }}
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
     >
-      <Scene phase={phase} onSunReady={setSun} />
+      <PerformanceMonitor bounds={(hz) => [Math.max(45, hz * 0.7), Math.max(55, hz * 0.9)]} onDecline={() => setDpr(0.85)} onIncline={() => setDpr(1.25)} flipflops={3} onFallback={() => setDpr(0.85)} />
+      <SnapshotBridge />
+      <Scene phase={phase} />
 
-      <EffectComposer multisampling={4} key={sun ? "sun" : "no-sun"}>
+      <EffectComposer multisampling={0} resolutionScale={0.5}>
         <Bloom
           intensity={1.3}
           luminanceThreshold={0.35}
           luminanceSmoothing={0.25}
           mipmapBlur
-          kernelSize={KernelSize.LARGE}
+          kernelSize={KernelSize.SMALL}
         />
-        {sun ? (
-          <GodRays
-            sun={sun}
-            blendFunction={BlendFunction.SCREEN}
-            samples={60}
-            density={0.96}
-            decay={0.92}
-            weight={0.45}
-            exposure={0.55}
-            clampMax={1}
-            kernelSize={KernelSize.SMALL}
-            blur
-          />
-        ) : (
-          <></>
-        )}
-        <DepthOfField focusDistance={0.018} focalLength={0.05} bokehScale={2.6} />
         <Vignette offset={0.3} darkness={0.7} eskil={false} />
       </EffectComposer>
     </Canvas></div>

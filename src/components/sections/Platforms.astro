@@ -309,17 +309,17 @@ const ICON_PATHS: Record<string, string> = {
   if (canvas && !prefersReducedMotion() && !isMobile() && !("ontouchstart" in window)) {
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
       let raf = 0;
       const particles: { x: number; y: number; vx: number; vy: number; life: number }[] = [];
-      const MAX = 60;
+      const MAX = 36;
       const LIFE = 0.8; // seconds
 
       const resize = () => {
         const r = canvas.getBoundingClientRect();
         canvas.width = r.width * dpr;
         canvas.height = r.height * dpr;
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       };
       resize();
 
@@ -340,6 +340,7 @@ const ICON_PATHS: Record<string, string> = {
             life: LIFE,
           });
         }
+        if (!raf && !document.hidden) { lastT = performance.now(); raf = requestAnimationFrame(tick); }
       };
 
       const tick = () => {
@@ -366,7 +367,7 @@ const ICON_PATHS: Record<string, string> = {
           ctx.fill();
         }
 
-        raf = requestAnimationFrame(tick);
+        raf = particles.length && !document.hidden ? requestAnimationFrame(tick) : 0;
       };
 
       const onScrollIn = new IntersectionObserver(
@@ -374,10 +375,10 @@ const ICON_PATHS: Record<string, string> = {
           for (const en of entries) {
             if (en.isIntersecting) {
               window.addEventListener("mousemove", onMove);
-              raf = requestAnimationFrame(tick);
+              raf = particles.length && !document.hidden ? requestAnimationFrame(tick) : 0;
             } else {
               window.removeEventListener("mousemove", onMove);
-              cancelAnimationFrame(raf);
+              cancelAnimationFrame(raf); raf = 0; particles.length = 0;
             }
           }
         },

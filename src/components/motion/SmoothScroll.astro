@@ -17,6 +17,7 @@
     // Bridge Lenis frames to GSAP ScrollTrigger so pinned/triggered animations stay in sync.
     getGsap().then(({ gsap, ScrollTrigger }) => {
       lenis.on("scroll", ScrollTrigger.update);
+      gsap.ticker.fps(1000); // Follow native rAF on high-refresh displays without a 60/120/240 cap.
       gsap.ticker.add((time) => lenis.raf(time * 1000));
       gsap.ticker.lagSmoothing(0);
       ScrollTrigger.refresh();

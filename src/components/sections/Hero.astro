@@ -92,7 +92,7 @@ import Eyebrow from "../ui/Eyebrow.astro";
   @media (prefers-reduced-motion: reduce) { .chart-draw { stroke-dashoffset: 0; } }
 </style>
 <script>
-  import { prefersReducedMotion } from "../../lib/motion-config";
+  import { prefersReducedMotion, animateWhileVisible } from "../../lib/motion-config";
 
   const particles = document.querySelector<HTMLCanvasElement>("[data-hero-particles]");
 
@@ -102,7 +102,7 @@ import Eyebrow from "../ui/Eyebrow.astro";
   if (particles && !prefersReducedMotion()) {
     const ctx = particles.getContext("2d");
     if (ctx) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
       type Dot = { x: number; y: number; vx: number; vy: number; r: number; a: number };
       let dots: Dot[] = [];
       const mouse = { x: -9999, y: -9999 };
@@ -113,7 +113,7 @@ import Eyebrow from "../ui/Eyebrow.astro";
         particles.height = r.height * dpr;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
-        const count = Math.min(70, Math.floor(r.width / 18));
+        const count = Math.min(42, Math.floor(r.width / 24));
         dots = Array.from({ length: count }, () => ({
           x: Math.random() * r.width,
           y: Math.random() * r.height,
@@ -137,7 +137,8 @@ import Eyebrow from "../ui/Eyebrow.astro";
       const LINK_DIST = 110;
       const MOUSE_DIST = 160;
 
-      const tick = () => {
+      const tick = (delta: number) => {
+        const step = delta * 60;
         const r = particles.getBoundingClientRect();
         ctx.clearRect(0, 0, r.width, r.height);
 
@@ -172,18 +173,18 @@ import Eyebrow from "../ui/Eyebrow.astro";
               ctx.lineTo(mouse.x, mouse.y);
               ctx.stroke();
               // Slight drift toward the cursor for a magnetised feel.
-              d.vx += (-dx / Math.sqrt(d2 + 0.001)) * 0.012 * t;
-              d.vy += (-dy / Math.sqrt(d2 + 0.001)) * 0.012 * t;
+              d.vx += (-dx / Math.sqrt(d2 + 0.001)) * 0.012 * t * step;
+              d.vy += (-dy / Math.sqrt(d2 + 0.001)) * 0.012 * t * step;
             }
           }
         }
 
         for (const d of dots) {
-          d.x += d.vx;
-          d.y += d.vy;
+          d.x += d.vx * step;
+          d.y += d.vy * step;
           // Velocity damping so the cursor magnet doesn't compound forever.
-          d.vx *= 0.985;
-          d.vy = d.vy * 0.985 - 0.01;
+          d.vx *= Math.pow(0.985, step);
+          d.vy = d.vy * Math.pow(0.985, step) - 0.01 * step;
           if (d.y < -4) { d.y = r.height + 4; d.x = Math.random() * r.width; }
           if (d.x < -4) d.x = r.width + 4;
           if (d.x > r.width + 4) d.x = -4;
@@ -192,9 +193,9 @@ import Eyebrow from "../ui/Eyebrow.astro";
           ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
           ctx.fill();
         }
-        requestAnimationFrame(tick);
+
       };
-      requestAnimationFrame(tick);
+      animateWhileVisible(particles, tick);
 
       window.addEventListener("resize", resize);
     }

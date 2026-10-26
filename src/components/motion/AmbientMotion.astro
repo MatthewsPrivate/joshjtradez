@@ -91,10 +91,12 @@
     if (spot) {
       let tx = 0, ty = 0, x = 0, y = 0;
       let active = false;
+      let raf = 0, previous = 0;
 
       const onMove = (e: MouseEvent) => {
         tx = e.clientX;
         ty = e.clientY;
+        if (!raf) raf = requestAnimationFrame(tick);
         if (!active) {
           spot.setAttribute("data-on", "");
           active = true;
@@ -103,6 +105,7 @@
       const onLeave = () => {
         spot.removeAttribute("data-on");
         active = false;
+        cancelAnimationFrame(raf); raf = 0; previous = 0;
       };
 
       window.addEventListener("mousemove", onMove, { passive: true });
@@ -110,14 +113,15 @@
         if (!e.relatedTarget) onLeave();
       });
 
-      const tick = () => {
-        x += (tx - x) * 0.16;
-        y += (ty - y) * 0.16;
+      const tick = (now: number) => {
+        const ease = 1 - Math.pow(0.84, Math.min(previous ? (now - previous) / 1000 : 1 / 60, .05) * 60); previous = now;
+        x += (tx - x) * ease;
+        y += (ty - y) * ease;
         spot.style.transform =
           `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
-        requestAnimationFrame(tick);
+        raf = active && (Math.abs(tx - x) > .1 || Math.abs(ty - y) > .1) ? requestAnimationFrame(tick) : 0;
+        if (!raf) previous = 0;
       };
-      requestAnimationFrame(tick);
     }
   }
 
@@ -129,15 +133,16 @@
       const radius = Number(el.dataset.magneticRadius ?? "120");
       const strength = Number(el.dataset.magneticStrength ?? "0.32");
       let raf = 0;
-      let curX = 0, curY = 0, tgtX = 0, tgtY = 0;
+      let curX = 0, curY = 0, tgtX = 0, tgtY = 0, previous = 0;
       let inField = false;
 
-      const tick = () => {
-        curX += (tgtX - curX) * 0.18;
-        curY += (tgtY - curY) * 0.18;
+      const tick = (now: number) => {
+        const ease = 1 - Math.pow(0.82, Math.min(previous ? (now - previous) / 1000 : 1 / 60, .05) * 60); previous = now;
+        curX += (tgtX - curX) * ease;
+        curY += (tgtY - curY) * ease;
         el.style.setProperty("--mx", `${curX.toFixed(2)}px`);
         el.style.setProperty("--my", `${curY.toFixed(2)}px`);
-        if (Math.abs(tgtX - curX) > 0.05 || Math.abs(tgtY - curY) > 0.05 || inField) {
+        if (Math.abs(tgtX - curX) > 0.05 || Math.abs(tgtY - curY) > 0.05) {
           raf = requestAnimationFrame(tick);
         } else {
           raf = 0;
@@ -188,13 +193,14 @@
       const max = Number(el.dataset.tiltMax ?? "10");          // deg
       const perspective = el.dataset.tiltPerspective ?? "1100px";
       let raf = 0;
-      let cRX = 0, cRY = 0, cZ = 0;
+      let cRX = 0, cRY = 0, cZ = 0, previous = 0;
       let tRX = 0, tRY = 0, tZ = 0;
 
-      const apply = () => {
-        cRX += (tRX - cRX) * 0.18;
-        cRY += (tRY - cRY) * 0.18;
-        cZ  += (tZ  - cZ ) * 0.18;
+      const apply = (now: number) => {
+        const ease = 1 - Math.pow(0.82, Math.min(previous ? (now - previous) / 1000 : 1 / 60, .05) * 60); previous = now;
+        cRX += (tRX - cRX) * ease;
+        cRY += (tRY - cRY) * ease;
+        cZ  += (tZ  - cZ ) * ease;
         // Compose with whatever the card's CSS does via custom props.
         el.style.transform =
           `perspective(${perspective}) ` +
