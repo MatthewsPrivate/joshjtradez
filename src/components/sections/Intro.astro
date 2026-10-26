@@ -1,12 +1,12 @@
 ---
-import HeroScene from "../motion/HeroScene";
+
 import { INTRO } from "../../lib/content";
 ---
 <section id="intro" class="intro-section" aria-label="JoshJTradez introduction" data-intro>
   <div class="container-edge intro-container">
     <div class="intro-heading"><span class="t-mono" data-intro-text>THE OPENING SESSION</span><span class="intro-preview t-mono" data-intro-text>{INTRO.videoSrc ? "THE STORY BEHIND THE TRADES" : "INTRO FILM · COMING SOON"}</span></div>
     <div class="intro-screen" data-intro-screen>
-      <div class="intro-scene" aria-hidden="true"><HeroScene client:media="(min-width: 768px) and (prefers-reduced-motion: no-preference)" /></div>
+      <div class="intro-scene" data-intro-scene aria-hidden="true"></div>
       <div class="intro-fallback" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
       {INTRO.videoSrc && <video class="intro-video" data-intro-video src={INTRO.videoSrc} poster={INTRO.poster || undefined} autoplay muted playsinline preload="metadata" aria-label="JoshJTradez intro film" />}
       <div class="intro-vignette" aria-hidden="true"></div>
@@ -28,7 +28,9 @@ import { INTRO } from "../../lib/content";
   .intro-preview { display: flex; align-items: center; gap: 9px; color: #8d887b; }
   .intro-preview::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #e5b344; box-shadow: 0 0 10px #e5b34488; }
   .intro-screen { position: relative; width: 100%; aspect-ratio: 1.95; min-height: 400px; max-height: 680px; overflow: hidden; border: 1px solid #e5b34445; border-radius: 5px; background: radial-gradient(ellipse at 65% 40%, #3a2c1755, transparent 65%), #0c0c0e; box-shadow: 0 35px 100px #0009, 0 0 80px #e5b34408, inset 0 0 0 5px #ffffff02; perspective: 1000px; }
-  .intro-scene { position: absolute; inset: -8% -10% -8% 15%; opacity: .85; }
+  .intro-scene { position: absolute; inset: -8% -10% -8% 15%; opacity: 0; transition: opacity 650ms ease; }
+  .intro-screen[data-scene-ready] .intro-scene { opacity: .85; }
+  .intro-screen:not([data-scene-ready]) .intro-fallback { opacity: .5; }
   .intro-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 23px; transform: perspective(600px) rotateY(-20deg) rotateZ(-14deg); opacity: .55; }
   .intro-fallback span { position: relative; width: 18px; height: 90px; background: linear-gradient(90deg, #6b491b, #e8bf60 50%, #79521f); border: 1px solid #f1cc7755; box-shadow: 12px 15px 30px #0007, 0 0 30px #e5b34410; animation: intro-drift 6s ease-in-out infinite; }
   .intro-fallback span::after { content: ''; position: absolute; width: 1px; height: 160%; background: #d7af56; top: -30%; left: 50%; }
@@ -60,5 +62,7 @@ import { INTRO } from "../../lib/content";
 </style>
 <script>
   import { setupIntro } from "../../lib/intro-transition";
+  import { loadIntroScene } from "../../lib/load-intro-scene";
   setupIntro();
+  loadIntroScene();
 </script>
