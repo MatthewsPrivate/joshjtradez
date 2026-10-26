@@ -136,6 +136,9 @@ export const CONTACT_FIELDS = [
     options: ["Beginner", "Some demo time", "Live <1yr", "1–3 years", "3+ years"] },
   { name: "trading",    label: "Currently Trading?",              type: "select",   required: true,
     options: ["Yes — live", "Yes — demo", "Not yet"] },
+  // Replace these four placeholder ranges with Josh's pricing when confirmed.
+  { name: "mentorshipBudget", label: "How much are you willing to invest into mentorship?", type: "select", required: true,
+    options: ["Price range 1 (TBC)", "Price range 2 (TBC)", "Price range 3 (TBC)", "Price range 4 (TBC)"] },
   { name: "goal",       label: "Trading Goal (next 6–12 months)", type: "textarea", required: true,  placeholder: "What does success look like for you?" },
   { name: "challenges", label: "Current Challenges / Blocks",     type: "textarea", required: false, placeholder: "What's been holding you back?" },
   { name: "referral",   label: "How You Heard About JoshJTradez", type: "text",     required: false, placeholder: "YouTube, Instagram, friend, …" },

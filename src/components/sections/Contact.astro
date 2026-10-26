@@ -30,7 +30,7 @@ import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
           <form class="contact-form" data-contact-form novalidate>
             {
               CONTACT_FIELDS.map((field) => (
-                <label class="field" data-field>
+                <label class="field" data-field={field.name}>
                   <span class="t-mono field-label">{field.label}{field.required && <span style="color: var(--gold-500)"> *</span>}</span>
                   {field.type === "textarea" ? (
                     <textarea
@@ -133,6 +133,7 @@ import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
   }
   @media (min-width: 700px) {
     .contact-form { grid-template-columns: 1fr 1fr; }
+    .field[data-field="mentorshipBudget"],
     .field[data-field]:has(textarea),
     .field[data-field]:nth-last-child(-n+2) { grid-column: 1 / -1; }
     .submit-btn { grid-column: 1 / -1; }
