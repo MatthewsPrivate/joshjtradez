@@ -17,6 +17,7 @@ import { NAV_ITEMS, HEADER } from "../lib/content";
     </nav>
 
     <div class="flex items-center gap-3">
+      <a href={HEADER.academyHref} class="btn btn-gold-ghost btn-pill-sm hidden sm:inline-flex">{HEADER.academyLabel}</a>
       <a href={HEADER.joinCtaHref} class="btn btn-gold-fill btn-pill-sm hidden sm:inline-flex">{HEADER.joinCtaLabel}</a>
 
       <button
@@ -43,7 +44,8 @@ import { NAV_ITEMS, HEADER } from "../lib/content";
           </a>
         ))
       }
-      <a href={HEADER.joinCtaHref} class="btn btn-gold-fill mt-4 sm:hidden" data-mobile-link>{HEADER.joinCtaLabel}</a>
+      <a href={HEADER.academyHref} class="btn btn-gold-ghost mt-4">{HEADER.academyLabel}</a>
+      <a href={HEADER.joinCtaHref} class="btn btn-gold-fill mt-2 sm:hidden" data-mobile-link>{HEADER.joinCtaLabel}</a>
     </nav>
   </div>
 </header>

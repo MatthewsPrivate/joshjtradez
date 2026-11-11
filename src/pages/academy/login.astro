@@ -25,6 +25,19 @@ const next = safeNext(Astro.url.searchParams.get("next"));
         <a href="/academy/forgot-password">Forgot password?</a>
         <a href="/academy/signup">Create an account</a>
       </div>
+      {
+        import.meta.env.DEV && (
+          <div class="flash flash-notice" style="margin:24px 0 0">
+            Dev preview (local only, sample data):{" "}
+            {["owner", "admin", "teacher", "student"].map((p, i) => (
+              <>
+                {i > 0 && " · "}
+                <a class="link-btn" href={`/dev-preview/${p}`}>{p}</a>
+              </>
+            ))}
+          </div>
+        )
+      }
     </div>
   </main>
 </AcademyLayout>

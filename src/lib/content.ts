@@ -27,6 +27,8 @@ export const HEADER = {
   logo: "JOSHJTRADEZ",
   joinCtaLabel: "Join Now",
   joinCtaHref: "#contact",
+  academyLabel: "Academy Login",
+  academyHref: "/academy/login",
 } as const;
 
 export const NAV_ITEMS = [
