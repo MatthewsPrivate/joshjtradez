@@ -17,6 +17,14 @@ const PUBLIC_ACADEMY_PATHS = new Set([
 const isAcademyPath = (p: string) =>
   p === "/academy" || p.startsWith("/academy/") || p.startsWith("/api/academy/");
 
+// Per-instance memory of each user's roles/permissions/profile for 30s, saving a
+// database round trip on most page loads. Only drives routing and UI — every
+// data read/write is still authorised by RLS in the database — so a role change
+// or suspension takes effect for navigation within 30 seconds.
+const ACCESS_TTL_MS = 30_000;
+type CachedProfile = NonNullable<App.Locals["profile"]>;
+const accessCache = new Map<string, { roles: Role[]; permissions: StaffPermission[]; profile: CachedProfile; at: number }>();
+
 // Server-to-server callers (payment provider webhooks) authenticate by signature, not origin.
 const CSRF_EXEMPT_PREFIXES = ["/api/academy/payments/webhook/"];
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -78,21 +86,50 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const authMs = performance.now() - started;
 
   if (user) {
-    const [roles, perms, profile] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("staff_permissions").select("permission").eq("user_id", user.id),
-      supabase.from("profiles").select("full_name, display_name, status").eq("id", user.id).single(),
-    ]);
-    ctx.locals.roles = (roles.data ?? []).map((r) => r.role as Role);
-    ctx.locals.permissions = (perms.data ?? []).map((p) => p.permission as StaffPermission);
-    ctx.locals.profile = profile.data;
+    // Student pages show this week's lesson count in the sidebar: start that
+    // query now so it runs alongside the page's own queries.
+    if (path.startsWith("/academy/student")) {
+      const monday = new Date();
+      monday.setUTCHours(0, 0, 0, 0);
+      monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+      ctx.locals.lessonsThisWeek = Promise.resolve(
+        supabase
+          .from("lesson_progress")
+          .select("lesson_id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("completed_at", monday.toISOString()),
+      ).then((r) => r.count ?? 0);
+    }
+
+    const cached = accessCache.get(user.id);
+    if (cached && Date.now() - cached.at < ACCESS_TTL_MS) {
+      ctx.locals.roles = [...cached.roles];
+      ctx.locals.permissions = [...cached.permissions];
+      ctx.locals.profile = cached.profile;
+    } else {
+      const [roles, perms, profile] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase.from("staff_permissions").select("permission").eq("user_id", user.id),
+        supabase.from("profiles").select("full_name, display_name, status, weekly_lesson_goal").eq("id", user.id).single(),
+      ]);
+      ctx.locals.roles = (roles.data ?? []).map((r) => r.role as Role);
+      ctx.locals.permissions = (perms.data ?? []).map((p) => p.permission as StaffPermission);
+      ctx.locals.profile = profile.data;
+      if (!roles.error && !perms.error && profile.data) {
+        if (accessCache.size > 2000) accessCache.clear();
+        accessCache.set(user.id, { roles: [...ctx.locals.roles], permissions: [...ctx.locals.permissions], profile: profile.data, at: Date.now() });
+      }
+    }
 
     // Rare path: email is on an owner/developer list but roles aren't granted yet.
     // Only then confirm with Supabase Auth that the email is verified.
     const pending = pendingBootstrapRoles(user.email, ctx.locals.roles);
     if (pending.roles.length) {
       const { data } = await supabase.auth.getUser();
-      if (data.user?.email_confirmed_at) ctx.locals.roles.push(...(await bootstrapRoles(user.id, pending)));
+      if (data.user?.email_confirmed_at) {
+        ctx.locals.roles.push(...(await bootstrapRoles(user.id, pending)));
+        accessCache.delete(user.id);
+      }
     }
   }
   const rolesMs = performance.now() - started - authMs;

@@ -20,7 +20,7 @@ interface Props {
 const { portal, activeSlug, pageLabel, wide = false, previewRoot } = Astro.props;
 const base = portalBase(portal, previewRoot);
 const settingsHref = previewRoot ? `${base}/settings` : "/academy/settings";
-const { user, profile, roles, supabase } = Astro.locals;
+const { user, profile, roles } = Astro.locals;
 
 const name = profile?.display_name || profile?.full_name || user?.email || "Account";
 const initials =
@@ -40,14 +40,8 @@ const portals = availablePortals(roles);
 // Sidebar card: students see their weekly lesson goal; staff see their access.
 let weekly: { done: number; goal: number } | null = null;
 if (portal === "student" && user) {
-  const now = new Date();
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)));
-  const { count } = await supabase
-    .from("lesson_progress")
-    .select("lesson_id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("completed_at", monday.toISOString());
-  weekly = { done: count ?? 0, goal: 5 };
+  // Started by middleware, so it ran in parallel with the page's own queries.
+  weekly = { done: (await Astro.locals.lessonsThisWeek) ?? 0, goal: profile?.weekly_lesson_goal ?? 5 };
 }
 
 const paletteItems = [

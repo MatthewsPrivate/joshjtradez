@@ -27,6 +27,8 @@ declare namespace App {
     user: { id: string; email: string | null } | null;
     roles: import("./lib/academy/roles").Role[];
     permissions: import("./lib/academy/roles").StaffPermission[];
-    profile: { full_name: string; display_name: string | null; status: "active" | "suspended" } | null;
+    profile: { full_name: string; display_name: string | null; status: "active" | "suspended"; weekly_lesson_goal?: number } | null;
+    /** Student pages only: lessons completed since Monday (started early by middleware). */
+    lessonsThisWeek?: Promise<number>;
   }
 }
