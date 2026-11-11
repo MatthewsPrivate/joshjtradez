@@ -26,6 +26,7 @@ Only open a component file when you're changing **layout / structure** (e.g. add
 | Big "TRADING SMARTER" headline | [src/lib/content.ts](src/lib/content.ts) | `IDENTITY_HEADLINE_LINES` |
 | Win-rate / payout numbers | [src/lib/content.ts](src/lib/content.ts) | `STATS` |
 | Contact form fields | [src/lib/content.ts](src/lib/content.ts) | `CONTACT_FIELDS` |
+| WhatsApp button (Josh's number, pre-filled message) | [src/lib/content.ts](src/lib/content.ts) | `WHATSAPP` (leave `number` empty to hide) |
 | Contact form benefits | [src/lib/content.ts](src/lib/content.ts) | `CONTACT_BENEFITS` |
 | Results / certificate cards | [src/lib/content.ts](src/lib/content.ts) | `PROOF_FEATURED` / `PROOF_SECONDARY` |
 | YouTube / Instagram / TikTok / Discord links | [src/lib/content.ts](src/lib/content.ts) | `SOCIAL_PLATFORMS` |

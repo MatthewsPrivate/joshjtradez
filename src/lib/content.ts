@@ -119,6 +119,27 @@ export const CONTACT = {
     "Josh has your details and will reach out within 24 hours. Welcome to the floor.",
 } as const;
 
+// -----------------------------------------------------------------------------
+// WHATSAPP — floating "chat with Josh" button + link in the Contact section.
+// Opens WhatsApp (app on phones, WhatsApp Web on desktop) with a ready-typed message.
+// -----------------------------------------------------------------------------
+export const WHATSAPP = {
+  // Josh's number in international format, DIGITS ONLY — country code first, no
+  // "+", spaces or leading 0. e.g. +27 82 123 4567 -> "27821234567".
+  // Leave empty ("") to hide the WhatsApp button everywhere.
+  number: "",
+  // Pre-filled message the visitor can edit before sending.
+  message: "Hi Josh, I found you on the JoshJTradez website and I have a question:",
+  buttonLabel: "Chat with Josh",
+  contactLinkLabel: "Prefer WhatsApp? Message Josh directly →",
+} as const;
+
+/** wa.me link with the pre-filled message, or null when no number is set. */
+export function whatsappHref(): string | null {
+  const digits = WHATSAPP.number.replace(/\D/g, "");
+  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP.message)}` : null;
+}
+
 export const CONTACT_BENEFITS = [
   "Personalised trading plan built specifically for your goals and risk tolerance",
   "Access to live trade signals every morning Josh is in the market",

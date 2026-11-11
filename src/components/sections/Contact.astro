@@ -1,6 +1,8 @@
 ---
 import Eyebrow from "../ui/Eyebrow.astro";
-import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
+import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS, WHATSAPP, whatsappHref } from "../../lib/content";
+
+const waHref = whatsappHref();
 ---
 
 <section id="contact" class="section-rhythm contact-section">
@@ -14,6 +16,7 @@ import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
           <span class="contact-heading-gold" data-h2-reveal>{CONTACT.headingGold}</span>
         </h2>
         <p class="t-body t-body-muted mt-6" style="max-width: 50ch;">{CONTACT.sub}</p>
+        {waHref && <a class="wa-contact-link t-mono mt-4" href={waHref} target="_blank" rel="noopener noreferrer">{WHATSAPP.contactLinkLabel}</a>}
 
         <div class="form-shell mt-12" data-form-shell>
           <!-- Decorative chart line drawn behind the form on enter (S06) -->
@@ -368,3 +371,19 @@ import { CONTACT, CONTACT_BENEFITS, CONTACT_FIELDS } from "../../lib/content";
     }
   });
 </script>
+
+<style>
+  .wa-contact-link {
+    display: inline-block;
+    color: var(--gold-500);
+    font-size: 12px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(229, 179, 68, 0.35);
+    padding-bottom: 2px;
+    transition: color 200ms var(--ease-confident), border-color 200ms var(--ease-confident);
+  }
+  .wa-contact-link:hover {
+    color: var(--gold-300);
+    border-color: var(--gold-300);
+  }
+</style>
