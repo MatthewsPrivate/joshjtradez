@@ -1,0 +1,175 @@
+---
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../components/academy/Icon";
+import { EmptyState, PageTitle, Progress } from "../../../components/academy/ui";
+import { COURSE_COLUMNS, coverUrl, type CourseRow } from "../../../lib/academy/courses";
+import { formatMoney } from "../../../lib/academy/dashboard";
+
+export const prerender = false;
+
+const { supabase, user } = Astro.locals;
+const tab = (["in-progress", "completed", "saved"] as const).find((t) => t === Astro.url.searchParams.get("tab")) ?? "in-progress";
+
+const [coursesRes, enrolRes, progRes, savedRes, teachersRes, productsRes] = await Promise.all([
+  supabase.from("courses").select(COURSE_COLUMNS).eq("status", "published").order("is_featured", { ascending: false }).order("title"),
+  supabase.from("enrolments").select("course_id, granted_at").eq("user_id", user!.id).eq("status", "active"),
+  supabase.from("course_progress").select("course_id, total_lessons, completed_lessons, last_activity_at").eq("user_id", user!.id),
+  supabase.from("course_bookmarks").select("course_id").eq("user_id", user!.id),
+  supabase.from("course_teachers").select("course_id, teacher_id, is_lead"),
+  supabase.from("product_courses").select("course_id, products(name, price_minor, currency, active)"),
+]);
+
+const courses = (coursesRes.data ?? []) as CourseRow[];
+const enrolledAt = new Map((enrolRes.data ?? []).map((e) => [e.course_id as string, e.granted_at as string]));
+const progress = new Map(
+  ((progRes.data ?? []) as { course_id: string; total_lessons: number; completed_lessons: number; last_activity_at: string | null }[]).map((p) => [p.course_id, p]),
+);
+const saved = new Set((savedRes.data ?? []).map((b) => b.course_id as string));
+
+const leadByCourse = new Map<string, string>();
+for (const t of (teachersRes.data ?? []) as { course_id: string; teacher_id: string; is_lead: boolean }[]) {
+  if (t.is_lead || !leadByCourse.has(t.course_id)) leadByCourse.set(t.course_id, t.teacher_id);
+}
+const { data: names } = leadByCourse.size
+  ? await supabase.from("member_directory").select("id, name").in("id", [...new Set(leadByCourse.values())])
+  : { data: [] };
+const nameOf = new Map((names ?? []).map((n) => [n.id as string, n.name as string]));
+
+const priceOf = new Map<string, { price: number; currency: string }>();
+for (const pc of (productsRes.data ?? []) as unknown as { course_id: string; products: { price_minor: number; currency: string; active: boolean } | null }[]) {
+  const p = pc.products;
+  if (!p?.active) continue;
+  const cur = priceOf.get(pc.course_id);
+  if (!cur || p.price_minor < cur.price) priceOf.set(pc.course_id, { price: p.price_minor, currency: p.currency });
+}
+
+const pct = (id: string) => {
+  const p = progress.get(id);
+  return p && p.total_lessons > 0 ? (p.completed_lessons / p.total_lessons) * 100 : 0;
+};
+const mine = courses.filter((c) => enrolledAt.has(c.id));
+const inProgress = mine.filter((c) => pct(c.id) < 100);
+const completed = mine.filter((c) => pct(c.id) >= 100);
+const savedCourses = courses.filter((c) => saved.has(c.id));
+const catalogue = courses.filter((c) => !enrolledAt.has(c.id));
+const shown = tab === "completed" ? completed : tab === "saved" ? savedCourses : inProgress;
+
+const lastActive = (id: string) => progress.get(id)?.last_activity_at ?? enrolledAt.get(id) ?? "";
+const feature = [...inProgress].sort((a, b) => lastActive(b.id).localeCompare(lastActive(a.id)))[0];
+const href = (c: CourseRow) => `/academy/student/courses/${c.slug}`;
+const back = `/academy/student/my-academy${tab === "in-progress" ? "" : `?tab=${tab}`}`;
+// Cover image if uploaded, otherwise one of the design's gradient artworks.
+const artClass = (c: CourseRow, i: number) => (coverUrl(c.cover_path) ? "academy-art" : "academy-art art-" + ((i % 2) + 1));
+const art = (c: CourseRow, _i: number) => {
+  const url = coverUrl(c.cover_path);
+  return url ? `background-image:linear-gradient(rgba(5,7,6,.2),rgba(5,7,6,.8)),url('${url}')` : undefined;
+};
+---
+
+<PortalLayout portal="student" activeSlug="my-academy" pageLabel="My academy">
+  <div class="page-stack">
+    <PageTitle kicker="MY ACADEMY" title="Build skill. Trade with clarity." description="Your courses, progress and next learning milestones in one place.">
+      <a slot="action" class="btn btn-outline" href="#catalogue"><Icon name="search" size={15} /> Browse courses</a>
+    </PageTitle>
+
+    {
+      feature && (
+        <div class="feature-course card">
+          <div class={`feature-photo ${coverUrl(feature.cover_path) ? "" : "course-art-0"}`} style={coverUrl(feature.cover_path) ? `background-image:linear-gradient(90deg,rgba(8,10,9,.08),rgba(8,10,9,.85)),url('${coverUrl(feature.cover_path)}')` : undefined}>
+            <span class="course-tag">CONTINUE LEARNING</span>
+          </div>
+          <div class="feature-copy">
+            <span class="kicker">{[feature.level, feature.category].filter(Boolean).join(" · ").toUpperCase() || "JOSHJTRADEZ ACADEMY"}</span>
+            <h2>{feature.title}</h2>
+            <p>{feature.summary}</p>
+            <Progress value={pct(feature.id)} />
+            <div class="feature-progress">
+              <strong>{Math.round(pct(feature.id))}% complete</strong>
+              <span>{progress.get(feature.id)?.completed_lessons ?? 0} of {progress.get(feature.id)?.total_lessons ?? 0} lessons</span>
+            </div>
+            <a class="btn btn-primary" href={href(feature)}><Icon name="play" size={15} /> Resume course</a>
+          </div>
+        </div>
+      )
+    }
+
+    <nav class="tab-line" aria-label="Course filters">
+      <a class={tab === "in-progress" ? "active" : undefined} href="/academy/student/my-academy">In progress <span>{inProgress.length}</span></a>
+      <a class={tab === "completed" ? "active" : undefined} href="?tab=completed">Completed <span>{completed.length}</span></a>
+      <a class={tab === "saved" ? "active" : undefined} href="?tab=saved">Saved <span>{savedCourses.length}</span></a>
+    </nav>
+
+    {
+      shown.length === 0 ? (
+        <div class="card">
+          <EmptyState
+            icon={tab === "saved" ? "award" : "book"}
+            title={tab === "completed" ? "No completed courses yet" : tab === "saved" ? "Nothing saved yet" : "No courses in progress"}
+            text={tab === "saved" ? "Save courses from the catalogue to come back to them later." : "Courses you have access to appear here."}
+          />
+        </div>
+      ) : (
+        <div class="academy-grid">
+          {shown.map((c, i) => (
+            <article class="academy-card card">
+              <div class={artClass(c, i)} style={art(c, i)}>
+                {c.level && <span class="course-tag">{c.level.toUpperCase()}</span>}
+              </div>
+              <div class="academy-copy">
+                <span class="kicker">JOSHJTRADEZ ACADEMY</span>
+                <h3>{c.title}</h3>
+                <p>{[nameOf.get(leadByCourse.get(c.id) ?? ""), `${progress.get(c.id)?.total_lessons ?? 0} lessons`].filter(Boolean).join(" · ")}</p>
+                {enrolledAt.has(c.id) && (
+                  <div class="course-progress">
+                    <Progress value={pct(c.id)} />
+                    <strong>{Math.round(pct(c.id))}%</strong>
+                  </div>
+                )}
+                <a href={href(c)}>{enrolledAt.has(c.id) ? "Continue course" : "View course"} <Icon name="arrow" size={15} /></a>
+              </div>
+            </article>
+          ))}
+        </div>
+      )
+    }
+
+    <section id="catalogue">
+      <div class="section-head outside">
+        <div>
+          <span class="kicker">COURSE CATALOGUE</span>
+          <h2>Explore more courses</h2>
+        </div>
+      </div>
+      {
+        catalogue.length === 0 ? (
+          <div class="card"><EmptyState icon="book" title="You have access to every published course" /></div>
+        ) : (
+          <div class="academy-grid">
+            {catalogue.map((c, i) => (
+              <article class="academy-card card">
+                <div class={artClass(c, i)} style={art(c, i)}>
+                  {c.is_featured && <span class="course-tag">FEATURED</span>}
+                  {c.level && <span class="duration">{c.level}</span>}
+                </div>
+                <div class="academy-copy">
+                  <span class="kicker">{c.category?.toUpperCase() ?? "JOSHJTRADEZ ACADEMY"}</span>
+                  <h3>{c.title}</h3>
+                  <p>{c.summary}</p>
+                  <div class="course-progress" style="justify-content:space-between">
+                    {priceOf.has(c.id) ? <span class="price-tag">{formatMoney(priceOf.get(c.id)!.price, priceOf.get(c.id)!.currency)}</span> : <span class="label-placeholder">PRICE TO BE ANNOUNCED</span>}
+                    <form method="post" action="/api/academy/bookmarks">
+                      <input type="hidden" name="course_id" value={c.id} /><input type="hidden" name="_back" value={back} />
+                      <input type="hidden" name="intent" value={saved.has(c.id) ? "remove" : "add"} />
+                      <button class="text-btn" type="submit">{saved.has(c.id) ? "Saved ✓" : "Save for later"}</button>
+                    </form>
+                  </div>
+                  <a href={href(c)}>View course <Icon name="arrow" size={15} /></a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
+      }
+    </section>
+  </div>
+</PortalLayout>

@@ -168,6 +168,8 @@ export function StudentOverviewPage({ data, firstName, base }: { data: StudentOv
   const goalPct = Math.min(100, (data.lessonsThisWeek / data.weeklyGoal) * 100);
   const hours12m = data.hoursByMonth.reduce((a, b) => a + b, 0);
   const academy = navHref("student", "my-academy", base);
+  // The dev preview has no course pages, so its links fall back to My academy.
+  const courseHref = (slug: string) => (base ? academy : `/academy/student/courses/${slug}`);
 
   return (
     <div className="page-stack">
@@ -177,7 +179,7 @@ export function StudentOverviewPage({ data, firstName, base }: { data: StudentOv
         text={data.courses.length ? "Pick up where you left off and keep the momentum going." : "Your learning space is ready. Your courses will appear here once you're enrolled."}
         action={
           data.courses.length > 0 && (
-            <a className="btn btn-primary" href={academy}>
+            <a className="btn btn-primary" href={courseHref(data.courses[0]!.slug)}>
               Continue lesson <Icon name="arrow" size={16} />
             </a>
           )
@@ -240,7 +242,7 @@ export function StudentOverviewPage({ data, firstName, base }: { data: StudentOv
               <article className="course-card card" key={c.id}>
                 <div className={`course-visual course-art-${i % 2}`}>
                   {c.level && <span className="course-tag">{c.level.toUpperCase()}</span>}
-                  <a className="play-btn" href={academy} aria-label={`Continue ${c.title}`}>
+                  <a className="play-btn" href={courseHref(c.slug)} aria-label={`Continue ${c.title}`}>
                     <Icon name="play" size={19} />
                   </a>
                 </div>
@@ -252,7 +254,7 @@ export function StudentOverviewPage({ data, firstName, base }: { data: StudentOv
                     <Progress value={c.progress} />
                     <strong>{Math.round(c.progress)}%</strong>
                   </div>
-                  <a href={academy}>
+                  <a href={courseHref(c.slug)}>
                     Continue learning <Icon name="arrow" size={15} />
                   </a>
                 </div>

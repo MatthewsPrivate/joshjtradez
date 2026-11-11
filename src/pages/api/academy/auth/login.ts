@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const { error } = await locals.supabase.auth.signInWithPassword({ email, password });
   if (error) {
     // One generic message for wrong email, wrong password and unconfirmed accounts.
-    const code = error.code === "email_not_confirmed" ? "unconfirmed" : "invalid";
+    const code = error.code === "email_not_confirmed" ? "unconfirmed" : "bad-login";
     return redirect(withQuery("/academy/login", { error: code, next }), 303);
   }
   return redirect(next, 303);

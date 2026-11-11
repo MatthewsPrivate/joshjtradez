@@ -1,0 +1,220 @@
+---
+import PortalLayout from "../../../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../../../components/academy/Icon";
+import { Progress } from "../../../../../components/academy/ui";
+import { loadCourseTree, loadProgress, mediaUrl, type ResourceRow } from "../../../../../lib/academy/courses";
+import { isUuid } from "../../../../../lib/academy/forms";
+import { renderMarkdown } from "../../../../../lib/academy/markdown";
+import { embedUrl, formatDuration } from "../../../../../lib/academy/video";
+
+export const prerender = false;
+
+const { slug = "", lessonId = "" } = Astro.params;
+const { supabase, user } = Astro.locals;
+if (!isUuid(lessonId)) return new Response(null, { status: 404 });
+
+const tree = await loadCourseTree(supabase, { slug });
+if (!tree) return Astro.redirect("/academy/student/my-academy?error=not-found");
+const courseHref = `/academy/student/courses/${tree.course.slug}`;
+// RLS only returns lessons this user may open (enrolled, free preview, or manager).
+const lesson = tree.lessons.find((l) => l.id === lessonId);
+if (!lesson) return Astro.redirect(`${courseHref}?error=not-allowed`);
+
+const [progress, resRes, teacherRes] = await Promise.all([
+  loadProgress(supabase, user!.id, tree.course.id),
+  supabase.from("lesson_resources").select("*").eq("lesson_id", lesson.id).order("position"),
+  supabase.rpc("can_manage_course", { c: tree.course.id }),
+]);
+const resources = (resRes.data ?? []) as ResourceRow[];
+const manager = teacherRes.data === true;
+
+const published = tree.lessons.filter((l) => l.status === "published");
+const done = published.filter((l) => progress.completed.has(l.id)).length;
+const order = manager ? tree.lessons : published;
+const idx = order.findIndex((l) => l.id === lesson.id);
+const prev = order[idx - 1];
+const next = order[idx + 1];
+const moduleIndex = tree.modules.findIndex((m) => m.id === lesson.module_id);
+const lessonIndex = tree.modules[moduleIndex]?.lessons.findIndex((l) => l.id === lesson.id) ?? 0;
+const complete = progress.completed.has(lesson.id);
+const embed = !lesson.video_path ? embedUrl(lesson.video_url) : null;
+const startAt = progress.positions.get(lesson.id) ?? 0;
+const here = `/academy/student/learn/${tree.course.slug}/${lesson.id}`;
+const learn = (id: string) => `/academy/student/learn/${tree.course.slug}/${id}`;
+const size = (b: number | null) => (b ? (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`) : "");
+---
+
+<PortalLayout portal="student" activeSlug="my-academy" pageLabel={lesson.title} wide>
+  <div class="lesson-layout">
+    <div class="lesson-main">
+      <a class="back-link" href={courseHref}>← Back to course</a>
+
+      <div class="video-frame">
+        {
+          lesson.video_path ? (
+            <video controls playsinline preload="metadata" src={mediaUrl(lesson.video_path)} data-lesson-video data-lesson-id={lesson.id} data-start={startAt} />
+          ) : embed ? (
+            <iframe src={embed} title={lesson.title} allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen />
+          ) : (
+            <div class="video-empty">
+              <Icon name="play" size={26} />
+              <span>{lesson.video_url ? <a class="link-btn" href={lesson.video_url} target="_blank" rel="noopener noreferrer">Open the lesson video</a> : "This lesson has no video — read the notes below."}</span>
+            </div>
+          )
+        }
+      </div>
+
+      <div class="lesson-title">
+        <div>
+          <span class="kicker">MODULE {moduleIndex + 1} · LESSON {lessonIndex + 1}{lesson.status !== "published" ? " · DRAFT" : ""}</span>
+          <h1>{lesson.title}</h1>
+          {lesson.summary && <p>{lesson.summary}</p>}
+        </div>
+        <form method="post" action="/api/academy/progress" data-complete-form>
+          <input type="hidden" name="lesson_id" value={lesson.id} />
+          <input type="hidden" name="action" value={complete ? "incomplete" : "complete"} />
+          <input type="hidden" name="_back" value={complete || !next ? here : learn(next.id)} />
+          <button class={`btn ${complete ? "btn-outline" : "btn-primary"}`} type="submit" data-complete-button>
+            {complete ? "Completed" : next ? "Mark complete & continue" : "Mark complete"} <Icon name="check" size={16} />
+          </button>
+        </form>
+      </div>
+
+      <div class="lesson-tabs" role="tablist">
+        <button class="active" type="button" role="tab" data-tab="overview">Overview</button>
+        <button type="button" role="tab" data-tab="resources">Resources {resources.length > 0 && <span>{resources.length}</span>}</button>
+        <button type="button" role="tab" data-tab="notes">Notes</button>
+        <button type="button" role="tab" data-tab="qa">Q&amp;A</button>
+      </div>
+
+      <section class="lesson-content card tab-panel" data-panel="overview">
+        {lesson.body?.markdown ? <div class="prose" set:html={renderMarkdown(lesson.body.markdown)} /> : <p class="hint">No written notes for this lesson.</p>}
+      </section>
+      <section class="lesson-content card tab-panel" data-panel="resources" hidden>
+        <div class="list-plain">
+          {resources.length === 0 && <p class="hint">No resources for this lesson.</p>}
+          {resources.map((r) => (
+            <div class="list-row">
+              <span class="metric-icon" style="width:28px;height:28px"><Icon name={r.kind === "link" ? "arrow" : "download"} size={14} /></span>
+              <span>
+                <strong>{r.title}</strong>
+                <small>{r.kind.toUpperCase()}{r.size_bytes ? ` · ${size(r.size_bytes)}` : ""}</small>
+              </span>
+              {r.storage_path ? (
+                <a class="btn btn-outline btn-sm" href={mediaUrl(r.storage_path, r.title)}>Download</a>
+              ) : (
+                <a class="btn btn-outline btn-sm" href={r.url!} target="_blank" rel="noopener noreferrer">Open</a>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      <section class="lesson-content card tab-panel" data-panel="notes" hidden>
+        <span class="label-placeholder">COMING SOON</span>
+        <p class="hint" style="margin-top:10px">Notes you write for this lesson will appear here once the Learning journal is switched on.</p>
+      </section>
+      <section class="lesson-content card tab-panel" data-panel="qa" hidden>
+        <span class="label-placeholder">COMING SOON</span>
+        <p class="hint" style="margin-top:10px">Ask questions about this lesson and see answers from your instructor once Community Q&amp;A is switched on.</p>
+      </section>
+
+      <nav class="lesson-nav" aria-label="Lesson navigation">
+        {prev ? <a class="btn btn-ghost" href={learn(prev.id)}>← {prev.title}</a> : <span />}
+        {next && <a class="btn btn-outline" href={learn(next.id)}>{next.title} →</a>}
+      </nav>
+    </div>
+
+    <aside class="curriculum">
+      <div class="curriculum-head">
+        <span class="kicker">COURSE CURRICULUM</span>
+        <h3>{tree.course.title}</h3>
+        <Progress value={published.length ? (done / published.length) * 100 : 0} />
+        <p>{done} of {published.length} lessons complete</p>
+      </div>
+      {
+        tree.modules.map((m, mi) => (
+          <details class="module" open={m.id === lesson.module_id}>
+            <summary>
+              <span>
+                <small>MODULE {mi + 1}</small>
+                <strong>{m.title}</strong>
+              </span>
+              <Icon name="chevron" size={15} />
+            </summary>
+            <div class="lessons">
+              {m.lessons.length === 0 && <p class="hint" style="padding:10px 18px;margin:0">{"Unlocks when you enrol."}</p>}
+              {m.lessons.map((l, li) => (
+                <a class={l.id === lesson.id ? "current" : undefined} href={learn(l.id)} aria-current={l.id === lesson.id ? "page" : undefined}>
+                  <span class={progress.completed.has(l.id) ? "lesson-check" : "lesson-num"}>{progress.completed.has(l.id) ? "✓" : li + 1}</span>
+                  <span>
+                    {l.title}
+                    <small>{l.id === lesson.id ? `${formatDuration(l.duration_seconds) || "—"} · Playing` : formatDuration(l.duration_seconds)}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </details>
+        ))
+      }
+      {tree.instructor && (
+        <div class="instructor">
+          <div class="avatar">{tree.instructor.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</div>
+          <div>
+            <small>YOUR INSTRUCTOR</small>
+            <strong>{tree.instructor}</strong>
+            <span>JoshJTradez Academy</span>
+          </div>
+        </div>
+      )}
+    </aside>
+  </div>
+</PortalLayout>
+
+<script>
+  // Tabs
+  const tabs = document.querySelectorAll<HTMLButtonElement>("[data-tab]");
+  tabs.forEach((tab) =>
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.toggle("active", t === tab));
+      document.querySelectorAll<HTMLElement>("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== tab.dataset.tab));
+    }),
+  );
+
+  // Resume position + save progress while watching an uploaded video.
+  const video = document.querySelector<HTMLVideoElement>("[data-lesson-video]");
+  if (video) {
+    const lessonId = video.dataset.lessonId!;
+    const start = Number(video.dataset.start ?? 0);
+    const save = (action: "position" | "complete") =>
+      fetch("/api/academy/progress", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lessonId, action, position: Math.floor(video.currentTime) }),
+        keepalive: true,
+      }).catch(() => undefined);
+
+    video.addEventListener("loadedmetadata", () => {
+      if (start > 5 && start < video.duration - 10) video.currentTime = start;
+    });
+    let lastSaved = 0;
+    video.addEventListener("timeupdate", () => {
+      if (Math.abs(video.currentTime - lastSaved) >= 15) {
+        lastSaved = video.currentTime;
+        save("position");
+      }
+    });
+    video.addEventListener("pause", () => save("position"));
+    video.addEventListener("ended", async () => {
+      await save("complete");
+      const btn = document.querySelector<HTMLButtonElement>("[data-complete-button]");
+      const action = document.querySelector<HTMLInputElement>("[data-complete-form] input[name=action]");
+      if (btn && action && action.value === "complete") {
+        btn.classList.replace("btn-primary", "btn-outline");
+        btn.firstChild!.textContent = "Completed ";
+        action.value = "incomplete";
+        const back = document.querySelector<HTMLInputElement>("[data-complete-form] input[name=_back]");
+        if (back) back.value = location.pathname;
+      }
+    });
+  }
+</script>

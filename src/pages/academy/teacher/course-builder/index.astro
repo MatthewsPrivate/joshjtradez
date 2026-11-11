@@ -1,0 +1,100 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../../components/academy/Icon";
+import { EmptyState, PageTitle } from "../../../../components/academy/ui";
+import { coverUrl, loadManageableCourses } from "../../../../lib/academy/courses";
+import { TIME_ZONE } from "../../../../lib/academy/dashboard";
+
+export const prerender = false;
+
+const { supabase, user, roles, permissions } = Astro.locals;
+const courses = await loadManageableCourses(supabase, user!.id, roles, permissions);
+const ids = courses.map((c) => c.id);
+const [lessonsRes, enrolRes] = ids.length
+  ? await Promise.all([
+      supabase.from("lessons").select("course_id").in("course_id", ids),
+      supabase.from("enrolments").select("course_id").in("course_id", ids).eq("status", "active"),
+    ])
+  : [{ data: [] }, { data: [] }];
+const countBy = (rows: { course_id: string }[] | null) =>
+  (rows ?? []).reduce((m, r) => m.set(r.course_id, (m.get(r.course_id) ?? 0) + 1), new Map<string, number>());
+const lessonCounts = countBy(lessonsRes.data as { course_id: string }[] | null);
+const enrolCounts = countBy(enrolRes.data as { course_id: string }[] | null);
+const back = "/academy/teacher/course-builder";
+const thumbStyle = (path: string | null) => {
+  const url = coverUrl(path);
+  return "width:64px;margin:0;" + (url ? "background-image:url('" + url + "')" : "");
+};
+const updated = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: TIME_ZONE });
+---
+
+<PortalLayout portal="teacher" activeSlug="course-builder" pageLabel="Course builder">
+  <div class="page-stack">
+    <PageTitle kicker="COURSE BUILDER" title="Build your courses." description="Create courses, organise modules and lessons, and upload videos and resources. Drafts stay hidden from students until you publish." />
+
+    <section class="card panel">
+      <div class="section-head">
+        <div>
+          <span class="kicker">NEW COURSE</span>
+          <h2>Start a course</h2>
+        </div>
+      </div>
+      <form class="inline-form" method="post" action="/api/academy/courses" style="margin-top:14px">
+        <input type="hidden" name="intent" value="create" />
+        <input type="hidden" name="_back" value={back} />
+        <input name="title" placeholder="Course title, e.g. Technical Analysis Mastery" required minlength="3" maxlength="200" aria-label="Course title" />
+        <button class="btn btn-primary" type="submit">Create course <Icon name="plus" size={15} /></button>
+      </form>
+      <form class="inline-form" method="post" action="/api/academy/demo-course" style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" type="submit">Or create a demo course with placeholder content</button>
+      </form>
+    </section>
+
+    <section class="card table-card">
+      <div class="section-head">
+        <div>
+          <span class="kicker">YOUR COURSES</span>
+          <h2>{courses.length} course{courses.length === 1 ? "" : "s"}</h2>
+        </div>
+      </div>
+      {
+        courses.length === 0 ? (
+          <EmptyState icon="book" title="No courses yet" text="Create your first course above, or add a demo course to explore the builder." />
+        ) : (
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Course</th><th>Status</th><th>Lessons</th><th>Students</th><th>Updated</th><th /></tr>
+              </thead>
+              <tbody>
+                {courses.map((c) => (
+                  <tr>
+                    <td>
+                      <div style="display:flex;gap:12px;align-items:center">
+                        <span class="cover-preview" style={thumbStyle(c.cover_path)} />
+                        <span>
+                          <strong>{c.title}</strong>
+                          <small>{[c.level, c.category].filter(Boolean).join(" · ") || "—"}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td><span class={`status ${c.status === "published" ? "" : c.status === "draft" ? "amber" : "muted"}`}>{c.status}</span></td>
+                    <td class="mono">{lessonCounts.get(c.id) ?? 0}</td>
+                    <td class="mono">{enrolCounts.get(c.id) ?? 0}</td>
+                    <td class="mono">{updated(c.updated_at)}</td>
+                    <td>
+                      <div class="row-actions">
+                        <a class="btn btn-outline btn-sm" href={`/academy/student/courses/${c.slug}`}>Preview</a>
+                        <a class="btn btn-primary btn-sm" href={`${back}/${c.id}`}>Edit</a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </section>
+  </div>
+</PortalLayout>

@@ -1,0 +1,124 @@
+---
+// File picker that uploads straight to Supabase Storage via a signed URL, then
+// submits its form with the stored path so the server can record it.
+//   action/intent/fields  -> the form posted after a successful upload
+//   bucket/courseId/lessonId -> where the file goes (path chosen server-side)
+interface Props {
+  action: string;
+  intent: string;
+  fields?: Record<string, string>;
+  back: string;
+  bucket: "course-covers" | "course-media";
+  courseId: string;
+  lessonId?: string;
+  accept: string;
+  label: string;
+  hint?: string;
+}
+
+const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, label, hint } = Astro.props;
+---
+
+<form method="post" action={action} data-upload-form data-bucket={bucket} data-course={courseId} data-lesson={lessonId}>
+  <input type="hidden" name="intent" value={intent} />
+  <input type="hidden" name="_back" value={back} />
+  {Object.entries(fields).map(([k, v]) => <input type="hidden" name={k} value={v} />)}
+  <input type="hidden" name="storage_path" data-upload-path />
+  <input type="hidden" name="size_bytes" data-upload-size />
+  <input type="hidden" name="duration_seconds" data-upload-duration />
+  <label class="btn btn-outline btn-sm">
+    {label}
+    <input type="file" accept={accept} hidden data-upload-input />
+  </label>
+  <span class="upload-status" data-upload-status>{hint}</span>
+  <div class="upload-bar" hidden data-upload-bar><span></span></div>
+</form>
+
+<script>
+  const MESSAGES: Record<string, string> = {
+    "unsupported-type": "That file type isn't supported here.",
+    "not-allowed": "You don't have permission to upload to this course.",
+    "not-found": "This lesson no longer exists.",
+    invalid: "Something was wrong with the upload request.",
+  };
+
+  function videoDuration(file: File): Promise<number | null> {
+    if (!file.type.startsWith("video/")) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => {
+        URL.revokeObjectURL(v.src);
+        resolve(Number.isFinite(v.duration) ? Math.round(v.duration) : null);
+      };
+      v.onerror = () => resolve(null);
+      v.src = URL.createObjectURL(file);
+    });
+  }
+
+  function put(url: string, file: File, onProgress: (pct: number) => void): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+      xhr.setRequestHeader("x-upsert", "false");
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress((e.loaded / e.total) * 100);
+      xhr.onload = () => resolve(xhr.status);
+      xhr.onerror = () => reject(new Error("network"));
+      xhr.send(file);
+    });
+  }
+
+  document.querySelectorAll<HTMLFormElement>("form[data-upload-form]").forEach((form) => {
+    const input = form.querySelector<HTMLInputElement>("[data-upload-input]")!;
+    const status = form.querySelector<HTMLElement>("[data-upload-status]")!;
+    const bar = form.querySelector<HTMLElement>("[data-upload-bar]")!;
+    const fill = bar.querySelector("span")!;
+    const say = (text: string, error = false) => {
+      status.textContent = text;
+      status.classList.toggle("error", error);
+    };
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      input.disabled = true;
+      say(`Preparing ${file.name}…`);
+      try {
+        const res = await fetch("/api/academy/uploads/sign", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            bucket: form.dataset.bucket,
+            courseId: form.dataset.course,
+            lessonId: form.dataset.lesson || undefined,
+            filename: file.name,
+            contentType: file.type,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(MESSAGES[body.error] ?? "Couldn't start the upload.");
+
+        const duration = await videoDuration(file);
+        bar.hidden = false;
+        const code = await put(body.signedUrl, file, (pct) => {
+          fill.style.width = `${pct}%`;
+          say(`Uploading ${file.name} — ${Math.round(pct)}%`);
+        });
+        if (code === 413) throw new Error("This file is larger than your storage upload limit (Supabase → Storage → Settings).");
+        if (code < 200 || code >= 300) throw new Error(`Upload failed (error ${code}). Please try again.`);
+
+        form.querySelector<HTMLInputElement>("[data-upload-path]")!.value = body.path;
+        form.querySelector<HTMLInputElement>("[data-upload-size]")!.value = String(file.size);
+        if (duration) form.querySelector<HTMLInputElement>("[data-upload-duration]")!.value = String(duration);
+        say("Saving…");
+        form.submit();
+      } catch (err) {
+        say(err instanceof Error && err.message !== "network" ? err.message : "Upload failed — check your connection and try again.", true);
+        bar.hidden = true;
+        input.disabled = false;
+        input.value = "";
+      }
+    });
+  });
+</script>

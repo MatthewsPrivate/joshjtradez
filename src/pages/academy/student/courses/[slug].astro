@@ -1,0 +1,138 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../../components/academy/Icon";
+import { EmptyState, Progress, SectionHead } from "../../../../components/academy/ui";
+import { coverUrl, loadCourseTree, loadProgress, resumeLesson } from "../../../../lib/academy/courses";
+import { formatMoney } from "../../../../lib/academy/dashboard";
+import { renderMarkdown } from "../../../../lib/academy/markdown";
+import { formatDuration, formatTotal } from "../../../../lib/academy/video";
+
+export const prerender = false;
+
+const { slug = "" } = Astro.params;
+const { supabase, user } = Astro.locals;
+const tree = await loadCourseTree(supabase, { slug });
+if (!tree) return Astro.redirect("/academy/student/my-academy?error=not-found");
+const { course, modules, lessons, instructor } = tree;
+
+const [enrolRes, manageRes, savedRes, productRes, progress] = await Promise.all([
+  supabase.from("enrolments").select("id").eq("user_id", user!.id).eq("course_id", course.id).eq("status", "active").maybeSingle(),
+  supabase.rpc("can_manage_course", { c: course.id }),
+  supabase.from("course_bookmarks").select("course_id").eq("user_id", user!.id).eq("course_id", course.id).maybeSingle(),
+  supabase.from("product_courses").select("products(name, price_minor, currency, active)").eq("course_id", course.id),
+  loadProgress(supabase, user!.id, course.id),
+]);
+const enrolled = Boolean(enrolRes.data);
+const manager = manageRes.data === true;
+const saved = Boolean(savedRes.data);
+const products = ((productRes.data ?? []) as unknown as { products: { name: string; price_minor: number; currency: string; active: boolean } | null }[])
+  .map((r) => r.products)
+  .filter((p): p is NonNullable<typeof p> => Boolean(p?.active))
+  .sort((a, b) => a.price_minor - b.price_minor);
+
+const playable = lessons.filter((l) => l.status === "published" || manager);
+const published = lessons.filter((l) => l.status === "published");
+const done = published.filter((l) => progress.completed.has(l.id)).length;
+const pct = published.length ? (done / published.length) * 100 : 0;
+const resume = enrolled || manager ? resumeLesson(lessons, progress) : null;
+const preview = lessons.find((l) => l.is_preview && l.status === "published");
+const total = published.reduce((s, l) => s + (l.duration_seconds ?? 0), 0);
+const cover = coverUrl(course.cover_path);
+const learn = (id: string) => `/academy/student/learn/${course.slug}/${id}`;
+const here = `/academy/student/courses/${course.slug}`;
+---
+
+<PortalLayout portal="student" activeSlug="my-academy" pageLabel={course.title}>
+  <div class="page-stack">
+    <a class="back-link" href="/academy/student/my-academy">← My academy</a>
+
+    {manager && (course.status !== "published" || !enrolled) && (
+      <div class="prototype-banner">
+        <Icon name="shield" />
+        <div>
+          <strong>Course manager preview{course.status !== "published" ? ` · this course is ${course.status}` : ""}</strong>
+          <p>You can open every lesson, including drafts. Students only see published lessons once they have access.</p>
+        </div>
+      </div>
+    )}
+
+    <section class="course-hero card">
+      <div class="feature-copy">
+        <span class="kicker">{[course.level, course.category].filter(Boolean).join(" · ").toUpperCase() || "JOSHJTRADEZ ACADEMY"}</span>
+        <h2>{course.title}</h2>
+        <p>{course.summary}</p>
+        <p class="hint" style="margin-top:12px">
+          {[instructor && `With ${instructor}`, `${modules.length} modules`, enrolled || manager ? `${published.length} lessons` : null, total ? formatTotal(total) : null].filter(Boolean).join(" · ")}
+        </p>
+        {
+          enrolled ? (
+            <>
+              <Progress value={pct} />
+              <div class="feature-progress">
+                <strong>{Math.round(pct)}% complete</strong>
+                <span>{done} of {published.length} lessons</span>
+              </div>
+              {resume ? <a class="btn btn-primary" href={learn(resume.id)}><Icon name="play" size={15} /> {done ? "Resume" : "Start"}: {resume.title}</a> : <span class="hint">Lessons are being added — check back soon.</span>}
+            </>
+          ) : (
+            <div class="actions" style="margin-top:22px;flex-wrap:wrap">
+              {products.length ? <span class="price-tag">{formatMoney(products[0]!.price_minor, products[0]!.currency)}</span> : <span class="label-placeholder">PRICE TO BE ANNOUNCED</span>}
+              <button class="btn btn-primary" type="button" disabled title="Checkout opens when the payment provider is connected">Enrol — coming soon</button>
+              {preview && <a class="btn btn-outline" href={learn(preview.id)}><Icon name="play" size={14} /> Watch free preview</a>}
+              {manager && resume && <a class="btn btn-outline" href={learn(resume.id)}>Open lessons</a>}
+              <form method="post" action="/api/academy/bookmarks">
+                <input type="hidden" name="course_id" value={course.id} /><input type="hidden" name="_back" value={here} />
+                <input type="hidden" name="intent" value={saved ? "remove" : "add"} />
+                <button class="btn btn-ghost" type="submit">{saved ? "Saved ✓" : "Save for later"}</button>
+              </form>
+            </div>
+          )
+        }
+      </div>
+      <div class={`feature-photo ${cover ? "" : "course-art-0"}`} style={cover ? `background-image:url('${cover}')` : undefined}></div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="card panel">
+        <SectionHead kicker="CURRICULUM" title="What's inside" />
+        {modules.length === 0 && <EmptyState icon="book" title="Curriculum coming soon" />}
+        {
+          modules.map((m, mi) => {
+            const visible = m.lessons.filter((l) => playable.includes(l));
+            return (
+              <div class="module-card">
+                <header>
+                  <small>MODULE {mi + 1}</small>
+                  <strong style="flex:1;font-size:12px">{m.title}</strong>
+                  {enrolled && visible.length > 0 && <small>{visible.filter((l) => progress.completed.has(l.id)).length}/{visible.length} DONE</small>}
+                </header>
+                {visible.length > 0 ? (
+                  <div class="list-plain" style="padding:0 14px">
+                    {visible.map((l, li) => (
+                      <a class="list-row" href={learn(l.id)} style="color:var(--text)">
+                        <span class={progress.completed.has(l.id) ? "lesson-check" : "lesson-num"}>{progress.completed.has(l.id) ? "✓" : li + 1}</span>
+                        <span>
+                          <strong>{l.title}</strong>
+                          <small>
+                            {[formatDuration(l.duration_seconds), l.is_preview && !enrolled ? "Free preview" : null, l.status !== "published" ? "Draft — hidden from students" : null].filter(Boolean).join(" · ")}
+                          </small>
+                        </span>
+                        <Icon name="chevron" size={14} />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p class="hint" style="padding:12px 14px;margin:0">{enrolled ? "Lessons coming soon." : "Unlocks when you enrol."}</p>
+                )}
+              </div>
+            );
+          })
+        }
+      </section>
+      <section class="card panel">
+        <SectionHead kicker="ABOUT THIS COURSE" title="Overview" />
+        {course.description ? <div class="prose" set:html={renderMarkdown(course.description)} /> : <p class="hint">No description yet.</p>}
+      </section>
+    </div>
+  </div>
+</PortalLayout>

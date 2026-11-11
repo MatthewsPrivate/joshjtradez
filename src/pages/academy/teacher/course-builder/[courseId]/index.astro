@@ -1,0 +1,226 @@
+---
+import PortalLayout from "../../../../../layouts/PortalLayout.astro";
+import UploadField from "../../../../../components/academy/UploadField.astro";
+import { Icon } from "../../../../../components/academy/Icon";
+import { EmptyState, SectionHead } from "../../../../../components/academy/ui";
+import { LEVELS, coverUrl, loadCourseTree } from "../../../../../lib/academy/courses";
+import { isUuid } from "../../../../../lib/academy/forms";
+import { hasPermission } from "../../../../../lib/academy/roles";
+import { formatDuration, formatTotal } from "../../../../../lib/academy/video";
+
+export const prerender = false;
+
+const { courseId = "" } = Astro.params;
+const { supabase, roles, permissions } = Astro.locals;
+if (!isUuid(courseId)) return new Response(null, { status: 404 });
+
+const tree = await loadCourseTree(supabase, { id: courseId });
+const { data: canManage } = await supabase.rpc("can_manage_course", { c: courseId });
+if (!tree || canManage !== true) return Astro.redirect("/academy/teacher/course-builder?error=not-found");
+const { course, modules, lessons } = tree;
+
+const canEnrol = hasPermission(roles, permissions, "enrolments.manage");
+let enrolled: { id: string; user_id: string; status: string; source: string; name: string }[] = [];
+if (canEnrol) {
+  const { data } = await supabase.from("enrolments").select("id, user_id, status, source").eq("course_id", course.id).order("granted_at", { ascending: false }).limit(50);
+  const rows = (data ?? []) as { id: string; user_id: string; status: string; source: string }[];
+  const { data: names } = rows.length
+    ? await supabase.from("member_directory").select("id, name").in("id", rows.map((r) => r.user_id))
+    : { data: [] };
+  const nameOf = new Map((names ?? []).map((n) => [n.id as string, n.name as string]));
+  enrolled = rows.map((r) => ({ ...r, name: nameOf.get(r.user_id) ?? "Member" }));
+}
+
+const here = `/academy/teacher/course-builder/${course.id}`;
+const cover = coverUrl(course.cover_path);
+const totalSeconds = lessons.reduce((s, l) => s + (l.duration_seconds ?? 0), 0);
+const published = lessons.filter((l) => l.status === "published").length;
+---
+
+<PortalLayout portal="teacher" activeSlug="course-builder" pageLabel={course.title}>
+  <div class="page-stack">
+    <header class="page-title">
+      <div>
+        <a class="back-link" href="/academy/teacher/course-builder">← All courses</a>
+        <span class="kicker" style="margin-top:12px">COURSE BUILDER · <span class={`status ${course.status === "published" ? "" : "amber"}`}>{course.status}</span></span>
+        <h1>{course.title}</h1>
+        <p>{modules.length} modules · {lessons.length} lessons ({published} published){totalSeconds ? ` · ${formatTotal(totalSeconds)}` : ""}</p>
+      </div>
+      <a class="btn btn-outline" href={`/academy/student/courses/${course.slug}`}>Preview as student <Icon name="arrow" size={15} /></a>
+    </header>
+
+    <div class="builder-grid">
+      <div class="stack">
+        <!-- Details -->
+        <section class="card panel">
+          <SectionHead kicker="DETAILS" title="Course information" />
+          <form method="post" action="/api/academy/courses">
+            <input type="hidden" name="intent" value="update" />
+            <input type="hidden" name="id" value={course.id} />
+            <input type="hidden" name="_back" value={here} />
+            <div class="form-grid">
+              <label class="wide">Title<input name="title" value={course.title} required minlength="3" maxlength="200" /></label>
+              <label>Web address<input name="slug" value={course.slug} maxlength="80" /><span class="hint">/academy/student/courses/<strong>{course.slug}</strong></span></label>
+              <label>Status
+                <select name="status">
+                  {["draft", "published", "archived"].map((s) => <option value={s} selected={course.status === s}>{s[0]!.toUpperCase() + s.slice(1)}</option>)}
+                </select>
+                <span class="hint">Only published courses are visible to students.</span>
+              </label>
+              <label>Level
+                <select name="level">
+                  <option value="">—</option>
+                  {LEVELS.map((l) => <option value={l} selected={course.level === l}>{l}</option>)}
+                </select>
+              </label>
+              <label>Category<input name="category" value={course.category ?? ""} maxlength="60" placeholder="e.g. Technical Analysis" /></label>
+              <label class="wide">Short summary<input name="summary" value={course.summary} maxlength="400" placeholder="One or two sentences shown on course cards" /></label>
+              <label class="wide">Full description<textarea name="description" rows="5" placeholder="What students will learn. Supports **bold**, lists and links.">{course.description}</textarea></label>
+              <label>Lessons required to complete (%)<input name="lessons_pct" type="number" min="0" max="100" value={course.completion_rule?.lessons_pct ?? 100} /></label>
+              <label>Minimum assessment score (%)<input name="min_assessment_pct" type="number" min="0" max="100" value={course.completion_rule?.min_assessment_pct ?? ""} placeholder="None" /><span class="hint">Used when issuing certificates.</span></label>
+              <label class="check-row wide"><input type="checkbox" name="is_featured" checked={course.is_featured} /> Feature this course in the catalogue</label>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Save details</button></div>
+          </form>
+        </section>
+
+        <!-- Curriculum -->
+        <section class="card panel">
+          <SectionHead kicker="CURRICULUM" title="Modules & lessons" />
+          {modules.length === 0 && <EmptyState icon="book" title="No modules yet" text="Add your first module below, then add lessons to it." />}
+          {
+            modules.map((m, mi) => (
+              <div class="module-card">
+                <header>
+                  <small>MODULE {mi + 1}</small>
+                  <form class="inline-form" method="post" action="/api/academy/modules">
+                    <input type="hidden" name="intent" value="update" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="_back" value={here} />
+                    <input name="title" value={m.title} required maxlength="200" aria-label="Module title" />
+                    <button class="btn btn-outline btn-sm" type="submit">Rename</button>
+                  </form>
+                  <div class="row-actions">
+                    <form method="post" action="/api/academy/modules"><input type="hidden" name="intent" value="move-up" /><input type="hidden" name="id" value={m.id} /><input type="hidden" name="_back" value={here} /><button class="icon-btn sm" title="Move up" disabled={mi === 0} style="transform:rotate(-90deg)"><Icon name="chevron" size={14} /></button></form>
+                    <form method="post" action="/api/academy/modules"><input type="hidden" name="intent" value="move-down" /><input type="hidden" name="id" value={m.id} /><input type="hidden" name="_back" value={here} /><button class="icon-btn sm" title="Move down" disabled={mi === modules.length - 1} style="transform:rotate(90deg)"><Icon name="chevron" size={14} /></button></form>
+                  </div>
+                </header>
+                {m.lessons.length > 0 && (
+                  <div class="table-wrap">
+                    <table>
+                      <tbody>
+                        {m.lessons.map((l, li) => (
+                          <tr>
+                            <td class="mono" style="width:32px">{mi + 1}.{li + 1}</td>
+                            <td><a href={`${here}/lessons/${l.id}`}><strong>{l.title}</strong></a></td>
+                            <td class="mono">{formatDuration(l.duration_seconds) || "—"}</td>
+                            <td>{l.video_path || l.video_url ? <span class="status">VIDEO</span> : <span class="status muted">NO VIDEO</span>}</td>
+                            <td>{l.is_preview && <span class="status amber">FREE PREVIEW</span>}</td>
+                            <td><span class={`status ${l.status === "published" ? "" : "amber"}`}>{l.status}</span></td>
+                            <td>
+                              <div class="row-actions">
+                                <form method="post" action="/api/academy/lessons"><input type="hidden" name="intent" value="move-up" /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="_back" value={here} /><button class="icon-btn sm" title="Move up" disabled={li === 0} style="transform:rotate(-90deg)"><Icon name="chevron" size={14} /></button></form>
+                                <form method="post" action="/api/academy/lessons"><input type="hidden" name="intent" value="move-down" /><input type="hidden" name="id" value={l.id} /><input type="hidden" name="_back" value={here} /><button class="icon-btn sm" title="Move down" disabled={li === m.lessons.length - 1} style="transform:rotate(90deg)"><Icon name="chevron" size={14} /></button></form>
+                                <a class="btn btn-outline btn-sm" href={`${here}/lessons/${l.id}`}>Edit</a>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <footer>
+                  <form class="inline-form" method="post" action="/api/academy/lessons">
+                    <input type="hidden" name="intent" value="create" />
+                    <input type="hidden" name="module_id" value={m.id} />
+                    <input type="hidden" name="_back" value={here} />
+                    <input name="title" placeholder="New lesson title" required maxlength="200" aria-label="New lesson title" />
+                    <button class="btn btn-outline btn-sm" type="submit"><Icon name="plus" size={13} /> Add lesson</button>
+                  </form>
+                  <details class="danger-zone" style="margin-top:10px">
+                    <summary>Delete module</summary>
+                    <form method="post" action="/api/academy/modules">
+                      <input type="hidden" name="intent" value="delete" />
+                      <input type="hidden" name="id" value={m.id} />
+                      <input type="hidden" name="_back" value={here} />
+                      <p class="hint">This permanently deletes the module and its {m.lessons.length} lesson(s), including uploaded videos and resources.</p>
+                      <button class="btn btn-danger btn-sm" type="submit" style="margin-top:8px">Delete module permanently</button>
+                    </form>
+                  </details>
+                </footer>
+              </div>
+            ))
+          }
+          <form class="inline-form" method="post" action="/api/academy/modules" style="margin-top:16px">
+            <input type="hidden" name="intent" value="create" />
+            <input type="hidden" name="course_id" value={course.id} />
+            <input type="hidden" name="_back" value={here} />
+            <input name="title" placeholder="New module title, e.g. Market structure" required maxlength="200" aria-label="New module title" />
+            <button class="btn btn-primary btn-sm" type="submit"><Icon name="plus" size={13} /> Add module</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="stack">
+        <!-- Cover -->
+        <section class="card panel">
+          <SectionHead kicker="COVER IMAGE" title="Course artwork" />
+          <div class="cover-preview" style={cover ? `background-image:url('${cover}')` : undefined}></div>
+          <UploadField action="/api/academy/courses" intent="set-cover" fields={{ id: course.id }} back={here} bucket="course-covers" courseId={course.id} accept="image/png,image/jpeg,image/webp" label={cover ? "Replace image" : "Upload image"} hint="16:9, at least 1280×720 recommended." />
+          {cover && (
+            <form method="post" action="/api/academy/courses" style="margin-top:8px">
+              <input type="hidden" name="intent" value="clear-cover" /><input type="hidden" name="id" value={course.id} /><input type="hidden" name="_back" value={here} />
+              <button class="btn btn-ghost btn-sm" type="submit">Remove image</button>
+            </form>
+          )}
+        </section>
+
+        <!-- Access -->
+        <section class="card panel">
+          <SectionHead kicker="ACCESS" title="Students" />
+          {
+            canEnrol ? (
+              <>
+                <p class="hint" style="margin:0 0 12px">Give someone access without a purchase (e.g. comps or early testers). Paid access will be granted automatically once payments are connected.</p>
+                <form class="inline-form" method="post" action="/api/academy/enrolments">
+                  <input type="hidden" name="intent" value="grant" /><input type="hidden" name="course_id" value={course.id} /><input type="hidden" name="_back" value={here} />
+                  <input type="email" name="email" placeholder="student@email.com" required aria-label="Student email" />
+                  <button class="btn btn-outline btn-sm" type="submit">Grant access</button>
+                </form>
+                <div class="list-plain" style="margin-top:12px">
+                  {enrolled.length === 0 && <p class="hint">No students enrolled yet.</p>}
+                  {enrolled.map((e) => (
+                    <div class="list-row">
+                      <span><strong>{e.name}</strong><small>{e.source} · {e.status}</small></span>
+                      {e.status === "active" && (
+                        <form method="post" action="/api/academy/enrolments">
+                          <input type="hidden" name="intent" value="revoke" /><input type="hidden" name="id" value={e.id} /><input type="hidden" name="_back" value={here} />
+                          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+                        </form>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p class="hint">Enrolments are managed by the academy owner.</p>
+            )
+          }
+        </section>
+
+        <!-- Danger zone -->
+        <section class="card panel">
+          <details class="danger-zone">
+            <summary>Delete course</summary>
+            <form method="post" action="/api/academy/courses">
+              <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={course.id} /><input type="hidden" name="_back" value={here} />
+              <p class="hint">Permanently deletes the course, all modules, lessons and uploaded files. Courses with enrolled students can't be deleted — set them to Archived instead.</p>
+              <button class="btn btn-danger btn-sm" type="submit" style="margin-top:8px">Delete course permanently</button>
+            </form>
+          </details>
+        </section>
+      </div>
+    </div>
+  </div>
+</PortalLayout>

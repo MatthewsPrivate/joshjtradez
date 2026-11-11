@@ -1,0 +1,65 @@
+---
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../components/academy/Icon";
+import { EmptyState, PageTitle, Progress } from "../../../components/academy/ui";
+import { coverUrl, loadManageableCourses } from "../../../lib/academy/courses";
+
+export const prerender = false;
+
+const { supabase, user, roles, permissions } = Astro.locals;
+const courses = await loadManageableCourses(supabase, user!.id, roles, permissions);
+const ids = courses.map((c) => c.id);
+const { data: prog } = ids.length
+  ? await supabase.from("course_progress").select("course_id, total_lessons, completed_lessons, last_activity_at").in("course_id", ids)
+  : { data: [] };
+
+type Stat = { students: number; avg: number | null; active7d: number };
+const stats = new Map<string, Stat>();
+const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+for (const id of ids) {
+  const rows = ((prog ?? []) as { course_id: string; total_lessons: number; completed_lessons: number; last_activity_at: string | null }[]).filter((r) => r.course_id === id);
+  const withLessons = rows.filter((r) => r.total_lessons > 0);
+  stats.set(id, {
+    students: rows.length,
+    avg: withLessons.length ? withLessons.reduce((s, r) => s + r.completed_lessons / r.total_lessons, 0) / withLessons.length * 100 : null,
+    active7d: rows.filter((r) => r.last_activity_at && r.last_activity_at >= weekAgo).length,
+  });
+}
+---
+
+<PortalLayout portal="teacher" activeSlug="my-courses" pageLabel="My courses">
+  <div class="page-stack">
+    <PageTitle kicker="MY COURSES" title="Your teaching catalogue." description="Enrolment and progress across the courses you teach.">
+      <a slot="action" class="btn btn-primary" href="/academy/teacher/course-builder"><Icon name="tool" size={15} /> Open course builder</a>
+    </PageTitle>
+    {
+      courses.length === 0 ? (
+        <div class="card"><EmptyState icon="book" title="No courses yet" text="Create a course in the course builder to get started." /></div>
+      ) : (
+        <div class="academy-grid">
+          {courses.map((c, i) => {
+            const s = stats.get(c.id)!;
+            const cover = coverUrl(c.cover_path);
+            return (
+              <article class="academy-card card">
+                <div class={cover ? "academy-art" : "academy-art art-" + ((i % 2) + 1)} style={cover ? `background-image:linear-gradient(rgba(5,7,6,.2),rgba(5,7,6,.8)),url('${cover}')` : undefined}>
+                  <span class="course-tag">{c.status.toUpperCase()}</span>
+                </div>
+                <div class="academy-copy">
+                  <span class="kicker">{c.category?.toUpperCase() ?? "JOSHJTRADEZ ACADEMY"}</span>
+                  <h3>{c.title}</h3>
+                  <p>{s.students} student{s.students === 1 ? "" : "s"} · {s.active7d} active this week</p>
+                  <div class="course-progress">
+                    <Progress value={s.avg ?? 0} />
+                    <strong>{s.avg === null ? "—" : `${Math.round(s.avg)}%`}</strong>
+                  </div>
+                  <a href={`/academy/teacher/course-builder/${c.id}`}>Edit course <Icon name="arrow" size={15} /></a>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )
+    }
+  </div>
+</PortalLayout>

@@ -2,6 +2,7 @@
 // Portal shell from the Figma Make design: sidebar, top bar, popovers, ⌘K palette.
 // Server-rendered; the small script at the bottom handles menus and the palette.
 import AcademyLayout from "./AcademyLayout.astro";
+import Flash from "../components/academy/Flash.astro";
 import { Icon } from "../components/academy/Icon";
 import { EmptyState, Logo, Progress } from "../components/academy/ui";
 import { NAV, navHref, portalBase } from "../lib/academy/nav";
@@ -166,6 +167,7 @@ const paletteItems = [
         </div>
       </header>
       <main class={wide ? "lesson-page-wrap" : undefined}>
+        <Flash />
         <slot />
       </main>
     </div>

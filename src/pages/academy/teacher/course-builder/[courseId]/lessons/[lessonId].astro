@@ -1,0 +1,152 @@
+---
+import PortalLayout from "../../../../../../layouts/PortalLayout.astro";
+import UploadField from "../../../../../../components/academy/UploadField.astro";
+import { Icon } from "../../../../../../components/academy/Icon";
+import { SectionHead } from "../../../../../../components/academy/ui";
+import { loadCourseTree, mediaUrl, type ResourceRow } from "../../../../../../lib/academy/courses";
+import { isUuid } from "../../../../../../lib/academy/forms";
+import { renderMarkdown } from "../../../../../../lib/academy/markdown";
+import { embedUrl, formatDuration } from "../../../../../../lib/academy/video";
+
+export const prerender = false;
+
+const { courseId = "", lessonId = "" } = Astro.params;
+if (!isUuid(courseId) || !isUuid(lessonId)) return new Response(null, { status: 404 });
+const { supabase } = Astro.locals;
+
+const tree = await loadCourseTree(supabase, { id: courseId });
+const { data: canManage } = await supabase.rpc("can_manage_course", { c: courseId });
+const lesson = tree?.lessons.find((l) => l.id === lessonId);
+if (!tree || !lesson || canManage !== true) return Astro.redirect(`/academy/teacher/course-builder/${courseId}?error=not-found`);
+
+const { data: resData } = await supabase.from("lesson_resources").select("*").eq("lesson_id", lesson.id).order("position");
+const resources = (resData ?? []) as ResourceRow[];
+const here = `/academy/teacher/course-builder/${courseId}/lessons/${lessonId}`;
+const courseHref = `/academy/teacher/course-builder/${courseId}`;
+const embed = embedUrl(lesson.video_url);
+const markdown = lesson.body?.markdown ?? "";
+const idx = tree.lessons.findIndex((l) => l.id === lesson.id);
+const prev = tree.lessons[idx - 1];
+const next = tree.lessons[idx + 1];
+const size = (b: number | null) => (b ? (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`) : "");
+---
+
+<PortalLayout portal="teacher" activeSlug="course-builder" pageLabel={lesson.title}>
+  <div class="page-stack">
+    <header class="page-title">
+      <div>
+        <a class="back-link" href={courseHref}>← {tree.course.title}</a>
+        <span class="kicker" style="margin-top:12px">LESSON EDITOR · <span class={`status ${lesson.status === "published" ? "" : "amber"}`}>{lesson.status}</span></span>
+        <h1>{lesson.title}</h1>
+      </div>
+      <div class="actions">
+        {prev && <a class="btn btn-ghost btn-sm" href={`${courseHref}/lessons/${prev.id}`}>← Previous</a>}
+        {next && <a class="btn btn-ghost btn-sm" href={`${courseHref}/lessons/${next.id}`}>Next →</a>}
+        <a class="btn btn-outline btn-sm" href={`/academy/student/learn/${tree.course.slug}/${lesson.id}`}>Preview <Icon name="arrow" size={13} /></a>
+      </div>
+    </header>
+
+    <div class="builder-grid">
+      <div class="stack">
+        <section class="card panel">
+          <SectionHead kicker="CONTENT" title="Lesson details" />
+          <form method="post" action="/api/academy/lessons">
+            <input type="hidden" name="intent" value="update" />
+            <input type="hidden" name="id" value={lesson.id} />
+            <input type="hidden" name="_back" value={here} />
+            <div class="form-grid">
+              <label class="wide">Title<input name="title" value={lesson.title} required maxlength="200" /></label>
+              <label>Module
+                <select name="module_id">{tree.modules.map((m, i) => <option value={m.id} selected={m.id === lesson.module_id}>Module {i + 1}: {m.title}</option>)}</select>
+              </label>
+              <label>Status
+                <select name="status">
+                  <option value="draft" selected={lesson.status === "draft"}>Draft (hidden from students)</option>
+                  <option value="published" selected={lesson.status === "published"}>Published</option>
+                </select>
+              </label>
+              <label>Duration<input name="duration" value={formatDuration(lesson.duration_seconds)} placeholder="mm:ss or minutes" /><span class="hint">Filled in automatically when you upload a video.</span></label>
+              <label class="check-row" style="align-self:center"><input type="checkbox" name="is_preview" checked={lesson.is_preview} /> Free preview (visible without purchase)</label>
+              <label class="wide">Summary<input name="summary" value={lesson.summary} maxlength="600" placeholder="One line shown under the lesson title" /></label>
+              <label class="wide">YouTube or Vimeo link<input name="video_url" type="url" value={lesson.video_url ?? ""} placeholder="https://www.youtube.com/watch?v=…  (optional — or upload a video file on the right)" /><span class="hint">An uploaded video takes priority over a link.</span></label>
+              <label class="wide">Lesson notes
+                <textarea name="body" rows="16" placeholder="Write the lesson content here.">{markdown}</textarea>
+                <span class="hint">Formatting: <code># Heading</code> · <code>**bold**</code> · <code>*italic*</code> · <code>- bullet</code> · <code>1. numbered</code> · <code>- [ ] checklist</code> · <code>&gt; key takeaway</code> · <code>[link text](https://…)</code></span>
+              </label>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Save lesson</button></div>
+          </form>
+        </section>
+
+        {markdown && (
+          <section class="card panel">
+            <SectionHead kicker="PREVIEW" title="How students see the notes" />
+            <div class="prose" set:html={renderMarkdown(markdown)} />
+          </section>
+        )}
+      </div>
+
+      <div class="stack">
+        <section class="card panel">
+          <SectionHead kicker="VIDEO" title="Lesson video" />
+          {
+            lesson.video_path ? (
+              <video controls preload="metadata" src={mediaUrl(lesson.video_path)} style="width:100%;aspect-ratio:16/9;background:#000;margin-bottom:12px" />
+            ) : embed ? (
+              <iframe src={embed} title="Lesson video" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="width:100%;aspect-ratio:16/9;border:0;margin-bottom:12px" />
+            ) : (
+              <p class="hint" style="margin:0 0 12px">No video yet. Upload a file here, or paste a YouTube/Vimeo link in the lesson details.</p>
+            )
+          }
+          <UploadField action="/api/academy/lessons" intent="set-video" fields={{ id: lesson.id }} back={here} bucket="course-media" courseId={courseId} lessonId={lesson.id} accept="video/mp4,video/quicktime,video/webm,video/x-m4v" label={lesson.video_path ? "Replace video" : "Upload video"} hint="MP4 recommended. Max size depends on your Supabase plan." />
+          {lesson.video_path && (
+            <form method="post" action="/api/academy/lessons" style="margin-top:8px">
+              <input type="hidden" name="intent" value="clear-video" /><input type="hidden" name="id" value={lesson.id} /><input type="hidden" name="_back" value={here} />
+              <button class="btn btn-ghost btn-sm" type="submit">Remove uploaded video</button>
+            </form>
+          )}
+        </section>
+
+        <section class="card panel">
+          <SectionHead kicker="RESOURCES" title="Downloads & links" />
+          <div class="list-plain">
+            {resources.length === 0 && <p class="hint" style="margin:0 0 10px">No resources yet. Add PDFs, worksheets, images or links.</p>}
+            {resources.map((r) => (
+              <div class="list-row">
+                <span class="metric-icon" style="width:28px;height:28px"><Icon name={r.kind === "link" ? "arrow" : r.kind === "image" ? "grid" : "note"} size={14} /></span>
+                <span>
+                  <strong>{r.storage_path ? <a href={mediaUrl(r.storage_path, r.title)}>{r.title}</a> : <a href={r.url!} target="_blank" rel="noopener noreferrer">{r.title}</a>}</strong>
+                  <small>{r.kind.toUpperCase()}{r.size_bytes ? ` · ${size(r.size_bytes)}` : ""}</small>
+                </span>
+                <form method="post" action="/api/academy/resources">
+                  <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={r.id} /><input type="hidden" name="_back" value={here} />
+                  <button class="icon-btn sm" title="Delete resource"><Icon name="close" size={14} /></button>
+                </form>
+              </div>
+            ))}
+          </div>
+          <div style="margin-top:14px">
+            <UploadField action="/api/academy/resources" intent="create-file" fields={{ lesson_id: lesson.id }} back={here} bucket="course-media" courseId={courseId} lessonId={lesson.id} accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip" label="Upload file" hint="PDF, image, Office document, CSV or ZIP." />
+          </div>
+          <form class="inline-form" method="post" action="/api/academy/resources" style="margin-top:12px">
+            <input type="hidden" name="intent" value="create-link" /><input type="hidden" name="lesson_id" value={lesson.id} /><input type="hidden" name="_back" value={here} />
+            <input name="title" placeholder="Link title" required maxlength="200" aria-label="Link title" />
+            <input type="url" name="url" placeholder="https://…" required aria-label="Link URL" />
+            <button class="btn btn-outline btn-sm" type="submit">Add link</button>
+          </form>
+        </section>
+
+        <section class="card panel">
+          <details class="danger-zone">
+            <summary>Delete lesson</summary>
+            <form method="post" action="/api/academy/lessons">
+              <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={lesson.id} /><input type="hidden" name="_back" value={courseHref} />
+              <p class="hint">Permanently deletes this lesson, its video and resources, and students' progress on it.</p>
+              <button class="btn btn-danger btn-sm" type="submit" style="margin-top:8px">Delete lesson permanently</button>
+            </form>
+          </details>
+        </section>
+      </div>
+    </div>
+  </div>
+</PortalLayout>
