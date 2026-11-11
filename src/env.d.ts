@@ -17,7 +17,8 @@ interface ImportMeta {
 declare namespace App {
   interface Locals {
     supabase: import("@supabase/supabase-js").SupabaseClient;
-    user: import("@supabase/supabase-js").User | null;
+    /** Verified from the session JWT's claims (see middleware). */
+    user: { id: string; email: string | null } | null;
     roles: import("./lib/academy/roles").Role[];
     permissions: import("./lib/academy/roles").StaffPermission[];
     profile: { full_name: string; display_name: string | null; status: "active" | "suspended" } | null;

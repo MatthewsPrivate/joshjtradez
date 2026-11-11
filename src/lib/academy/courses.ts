@@ -84,26 +84,36 @@ export async function loadCourseTree(
   supabase: SupabaseClient,
   by: { slug: string } | { id: string },
 ): Promise<CourseTree | null> {
-  const q = supabase.from("courses").select(COURSE_COLUMNS);
-  const { data: course } = await ("slug" in by ? q.eq("slug", by.slug) : q.eq("id", by.id)).maybeSingle<CourseRow>();
-  if (!course) return null;
+  // One round trip: the course with its modules, lessons and teachers embedded
+  // (each embedded table is still filtered by its own RLS policy).
+  const q = supabase
+    .from("courses")
+    .select(
+      `${COURSE_COLUMNS}, modules(id, course_id, title, summary, position), lessons(${LESSON_COLUMNS}), course_teachers(teacher_id, is_lead)`,
+    );
+  const { data } = await ("slug" in by ? q.eq("slug", by.slug) : q.eq("id", by.id)).maybeSingle();
+  if (!data) return null;
+  const {
+    modules: rawModules,
+    lessons: rawLessons,
+    course_teachers: teachers,
+    ...course
+  } = data as unknown as CourseRow & {
+    modules: Omit<ModuleTree, "lessons">[];
+    lessons: LessonRow[];
+    course_teachers: { teacher_id: string; is_lead: boolean }[];
+  };
 
-  const [modulesRes, lessonsRes, teachersRes] = await Promise.all([
-    supabase.from("modules").select("id, course_id, title, summary, position").eq("course_id", course.id).order("position"),
-    supabase.from("lessons").select(LESSON_COLUMNS).eq("course_id", course.id).order("position"),
-    supabase.from("course_teachers").select("teacher_id, is_lead").eq("course_id", course.id),
-  ]);
-
+  const byPosition = (a: { position: number }, b: { position: number }) => a.position - b.position;
   const lessonsByModule = new Map<string, LessonRow[]>();
-  for (const l of (lessonsRes.data ?? []) as LessonRow[]) {
+  for (const l of [...rawLessons].sort(byPosition)) {
     lessonsByModule.set(l.module_id, [...(lessonsByModule.get(l.module_id) ?? []), l]);
   }
-  const modules: ModuleTree[] = ((modulesRes.data ?? []) as Omit<ModuleTree, "lessons">[]).map((m) => ({
+  const modules: ModuleTree[] = [...rawModules].sort(byPosition).map((m) => ({
     ...m,
     lessons: lessonsByModule.get(m.id) ?? [],
   }));
 
-  const teachers = (teachersRes.data ?? []) as { teacher_id: string; is_lead: boolean }[];
   const lead = teachers.find((t) => t.is_lead) ?? teachers[0];
   let instructor: string | null = null;
   if (lead) {

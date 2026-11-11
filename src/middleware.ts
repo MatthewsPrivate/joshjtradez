@@ -61,17 +61,21 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     );
   }
 
+  const started = performance.now();
   const supabase = createUserClient(ctx);
   ctx.locals.supabase = supabase;
   ctx.locals.roles = [];
   ctx.locals.permissions = [];
   ctx.locals.profile = null;
 
-  // getUser() validates the JWT with Supabase Auth; getSession() alone would trust the cookie.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the session JWT's signature locally (cached JWKS), so
+  // authenticating costs no round trip to Supabase Auth on each request.
+  // (It falls back to a server check for projects still on symmetric keys.)
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const user = claims?.sub ? { id: claims.sub, email: (claims.email as string | undefined) ?? null } : null;
   ctx.locals.user = user;
+  const authMs = performance.now() - started;
 
   if (user) {
     const [roles, perms, profile] = await Promise.all([
@@ -83,9 +87,15 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     ctx.locals.permissions = (perms.data ?? []).map((p) => p.permission as StaffPermission);
     ctx.locals.profile = profile.data;
 
-    const pending = pendingBootstrapRoles(user, ctx.locals.roles);
-    if (pending.roles.length) ctx.locals.roles.push(...(await bootstrapRoles(user, pending)));
+    // Rare path: email is on an owner/developer list but roles aren't granted yet.
+    // Only then confirm with Supabase Auth that the email is verified.
+    const pending = pendingBootstrapRoles(user.email, ctx.locals.roles);
+    if (pending.roles.length) {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.email_confirmed_at) ctx.locals.roles.push(...(await bootstrapRoles(user.id, pending)));
+    }
   }
+  const rolesMs = performance.now() - started - authMs;
 
   const isApi = path.startsWith("/api/");
   const deny = (status: 401 | 403, redirect: string) =>
@@ -119,8 +129,14 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return deny(403, "/academy?denied=1");
   }
 
+  const pageStart = performance.now();
   const response = await next();
-  // Authenticated pages are per-user: never cache them at the edge.
-  response.headers.set("cache-control", "private, no-store");
+  // Per-user pages: never cached by shared caches, always revalidated by the
+  // browser. (Not no-store, so the back/forward cache can restore pages instantly.)
+  response.headers.set("cache-control", "private, no-cache");
+  response.headers.set(
+    "server-timing",
+    `auth;dur=${authMs.toFixed(1)}, roles;dur=${rolesMs.toFixed(1)}, page;dur=${(performance.now() - pageStart).toFixed(1)}`,
+  );
   return response;
 });

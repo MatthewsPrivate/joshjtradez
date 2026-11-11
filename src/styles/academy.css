@@ -233,8 +233,7 @@
   top: 0;
   z-index: 20;
   border-bottom: 1px solid var(--line);
-  background: rgba(8, 10, 9, 0.88);
-  backdrop-filter: blur(18px);
+  background: rgba(8, 10, 9, 0.97);
   display: flex;
   align-items: center;
   justify-content: space-between;
