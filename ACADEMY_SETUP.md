@@ -20,6 +20,7 @@ The academy is part of the main website. Anyone can reach it from the **Academy 
    1. `20261111000000_foundation.sql`
    2. `20261111010000_course_progress_view.sql`
    3. `20261111020000_platform.sql`
+   4. `20261111030000_developer_role.sql`
 3. Each run should end with "Success. No rows returned".
 
 ## 3. Login settings
@@ -56,6 +57,7 @@ In Supabase, go to **Project Settings → API** and copy:
    PUBLIC_SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
    ACADEMY_OWNER_EMAILS=josh@his-email.com
+   ACADEMY_DEVELOPER_EMAILS=your-own@email.com
    ```
 
 3. Restart the dev server (`npm run dev`).
@@ -65,7 +67,7 @@ In Supabase, go to **Project Settings → API** and copy:
 **On the live website (Vercel):**
 
 1. Open the Vercel project and go to **Settings → Environment Variables**.
-2. Add the same four variables. Mark `SUPABASE_SERVICE_ROLE_KEY` as **Sensitive**.
+2. Add the same five variables. Mark `SUPABASE_SERVICE_ROLE_KEY` as **Sensitive**.
 3. Redeploy.
 
 Until these are set, `/academy` shows a friendly "The academy is being set up" page instead of an error.
@@ -75,10 +77,20 @@ Until these are set, `/academy` shows a friendly "The academy is being set up" p
 1. Josh goes to the website, clicks **Academy Login**, then **Create an account**.
 2. He signs up with **the same email** you put in `ACADEMY_OWNER_EMAILS`.
 3. He clicks the confirmation link in his inbox.
-4. He signs in. The website recognises the email and gives him the **Owner** and **Teacher** roles. This is recorded in the audit log.
+4. He signs in. The website recognises the email and gives him the **Owner** and **Teacher** roles. This is recorded in the audit log. Removing an email from the setting later does not take a role away. To remove a role, delete that account's row in the `user_roles` table in Supabase.
 5. After signing in he can choose between the Owner, Admin, Teacher and Student portals. The role switcher at the top right moves between them at any time.
 
 Everyone else who signs up becomes a **Student**. Josh can give staff roles from the Owner portal (Staff / Access management).
+
+## 7. Developer access (for the site's developer only)
+
+The developer signs up the same way as Josh, using the email in `ACADEMY_DEVELOPER_EMAILS`, and confirms it. They then get a hidden **Developer** role. This role:
+
+- opens a **Developer portal** (`/academy/developer`). It shows whether each setting is configured and each database migration has been applied, recent audit log entries and build information. It never shows secret values.
+- can open **all four portals** for testing, with full permissions.
+- is **invisible to everyone else**. Nobody else is ever offered the Developer portal, and the address refuses anyone without the role.
+
+To remove developer access later, take the email out of `ACADEMY_DEVELOPER_EMAILS`. Then delete the `developer` row for that account from the `user_roles` table in Supabase.
 
 ---
 

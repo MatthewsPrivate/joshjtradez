@@ -1,5 +1,6 @@
 ---
-// All four portals. Middleware has already verified the user may open this portal.
+// All portals (four public ones + the hidden developer portal). Middleware has
+// already verified the user may open this portal.
 // Each page loads its own data server-side through the user's RLS-scoped client.
 import PortalLayout from "../../../layouts/PortalLayout.astro";
 import { EmptyState, PageTitle } from "../../../components/academy/ui";
@@ -15,6 +16,8 @@ import {
   loadStudentOverview,
   loadTeacherOverview,
 } from "../../../lib/academy/dashboard";
+import { DeveloperOverviewPage } from "../../../components/academy/DeveloperOverview";
+import { loadDiagnostics } from "../../../lib/academy/developer";
 import { findNavItem } from "../../../lib/academy/nav";
 import { isRole } from "../../../lib/academy/roles";
 
@@ -34,12 +37,15 @@ let student: Awaited<ReturnType<typeof loadStudentOverview>> | null = null;
 let teacher: Awaited<ReturnType<typeof loadTeacherOverview>> | null = null;
 let owner: Awaited<ReturnType<typeof loadOwnerOverview>> | null = null;
 let admin: Awaited<ReturnType<typeof loadAdminOverview>> | null = null;
+let developer: Awaited<ReturnType<typeof loadDiagnostics>> | null = null;
 
 if (item.slug === "") {
   try {
     if (portal === "student") student = await loadStudentOverview(supabase, user!.id);
     else if (portal === "teacher") teacher = await loadTeacherOverview(supabase, user!.id);
     else if (portal === "owner") owner = await loadOwnerOverview(supabase);
+    // Belt and braces: middleware already restricts /academy/developer to the developer role.
+    else if (portal === "developer") developer = roles.includes("developer") ? await loadDiagnostics() : null;
     else admin = await loadAdminOverview(supabase, roles, permissions);
   } catch (err) {
     console.error(err);
@@ -64,6 +70,8 @@ const firstName = (profile?.display_name || profile?.full_name || "").split(" ")
       <OwnerOverviewPage data={owner} />
     ) : admin ? (
       <AdminOverviewPage data={admin} />
+    ) : developer ? (
+      <DeveloperOverviewPage data={developer} session={{ email: user!.email ?? "", userId: user!.id, roles, permissions }} />
     ) : (
       <div class="page-stack">
         <PageTitle kicker={`${portal.toUpperCase()} PORTAL`} title={item.label} description="This area is being built and will be available in an upcoming release." />

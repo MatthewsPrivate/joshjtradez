@@ -14,7 +14,7 @@ export const prerender = false;
 if (!import.meta.env.DEV) return new Response(null, { status: 404 });
 
 const portal = Astro.params.portal;
-if (!isRole(portal)) return new Response(null, { status: 404 });
+if (!isRole(portal) || portal === "developer") return new Response(null, { status: 404 });
 const item = findNavItem(portal, Astro.params.path ?? "");
 if (!item) return new Response(null, { status: 404 });
 const base = `/dev-preview/${portal}`;

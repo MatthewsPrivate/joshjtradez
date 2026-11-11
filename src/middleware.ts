@@ -1,5 +1,5 @@
 import { defineMiddleware } from "astro:middleware";
-import { bootstrapOwner, shouldBootstrapOwner } from "./lib/academy/bootstrap";
+import { bootstrapRoles, pendingBootstrapRoles } from "./lib/academy/bootstrap";
 import { createUserClient, isSupabaseConfigured } from "./lib/academy/supabase";
 import { canOpenPortal, isRole, type Role, type StaffPermission } from "./lib/academy/roles";
 
@@ -55,9 +55,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     ctx.locals.permissions = (perms.data ?? []).map((p) => p.permission as StaffPermission);
     ctx.locals.profile = profile.data;
 
-    if (shouldBootstrapOwner(user, ctx.locals.roles)) {
-      ctx.locals.roles.push(...(await bootstrapOwner(user, ctx.locals.roles)));
-    }
+    const pending = pendingBootstrapRoles(user, ctx.locals.roles);
+    if (pending.roles.length) ctx.locals.roles.push(...(await bootstrapRoles(user, pending)));
   }
 
   const isApi = path.startsWith("/api/");

@@ -71,6 +71,7 @@ export const NAV: Record<Role, NavItem[]> = {
     item("Integrations", "tool"),
     item("Settings", "settings"),
   ],
+  developer: [item("Overview", "grid"), item("Settings", "settings")],
 };
 
 /** `base` overrides the portal root (the dev preview serves portals from /dev-preview/<portal>). */

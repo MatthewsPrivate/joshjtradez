@@ -1,7 +1,9 @@
 // Roles, portals and staff permissions. Mirrors the enums in
 // supabase/migrations/*_foundation.sql — keep the two in sync.
 
-export const ROLES = ["owner", "admin", "teacher", "student"] as const;
+// "developer" is hidden: only granted via ACADEMY_DEVELOPER_EMAILS and only
+// ever shown to the developer themself.
+export const ROLES = ["owner", "admin", "teacher", "student", "developer"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const STAFF_PERMISSIONS = [
@@ -28,14 +30,19 @@ export const PORTALS: Record<Role, { label: string; path: string }> = {
   admin: { label: "Admin portal", path: "/academy/admin" },
   teacher: { label: "Teacher portal", path: "/academy/teacher" },
   student: { label: "Student portal", path: "/academy/student" },
+  developer: { label: "Developer portal", path: "/academy/developer" },
 };
 
-/** Which roles may open a given portal. Owners can also step into the admin portal. */
+/**
+ * Which roles may open a given portal. Owners can also step into the admin
+ * portal; the developer can open every portal for testing.
+ */
 export const PORTAL_ACCESS: Record<Role, readonly Role[]> = {
-  owner: ["owner"],
-  admin: ["admin", "owner"],
-  teacher: ["teacher"],
-  student: ["student"],
+  owner: ["owner", "developer"],
+  admin: ["admin", "owner", "developer"],
+  teacher: ["teacher", "developer"],
+  student: ["student", "developer"],
+  developer: ["developer"],
 };
 
 export function canOpenPortal(portal: Role, roles: readonly Role[]): boolean {
@@ -52,7 +59,7 @@ export function hasPermission(
   permissions: readonly StaffPermission[],
   perm: StaffPermission,
 ): boolean {
-  if (roles.includes("owner")) return true;
+  if (roles.includes("owner") || roles.includes("developer")) return true;
   return roles.includes("admin") && permissions.includes(perm);
 }
 

@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly SUPABASE_SERVICE_ROLE_KEY: string;
   /** Comma-separated verified emails that are made owner + teacher on sign-in. */
   readonly ACADEMY_OWNER_EMAILS?: string;
+  /** Comma-separated verified emails that get the hidden developer role on sign-in. */
+  readonly ACADEMY_DEVELOPER_EMAILS?: string;
 }
 
 interface ImportMeta {
