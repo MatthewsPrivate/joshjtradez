@@ -17,11 +17,39 @@ const PUBLIC_ACADEMY_PATHS = new Set([
 const isAcademyPath = (p: string) =>
   p === "/academy" || p.startsWith("/academy/") || p.startsWith("/api/academy/");
 
+// Server-to-server callers (payment provider webhooks) authenticate by signature, not origin.
+const CSRF_EXEMPT_PREFIXES = ["/api/academy/payments/webhook/"];
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * CSRF guard: a state-changing request must come from a page on this same host.
+ * Compares the browser's Origin (or Referer) with the Host it requested, which
+ * stays correct behind Vercel's proxy (unlike the function's internal URL).
+ */
+function isSameSiteRequest(request: Request): boolean {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const source = request.headers.get("origin") ?? request.headers.get("referer");
+  if (!host || !source || source === "null") return false;
+  try {
+    return new URL(source).host === host;
+  } catch {
+    return false;
+  }
+}
+
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const path = ctx.url.pathname.replace(/\/+$/, "") || "/";
 
   // The marketing site is prerendered and never touches auth.
   if (ctx.isPrerendered || !isAcademyPath(path)) return next();
+
+  if (
+    UNSAFE_METHODS.has(ctx.request.method) &&
+    !CSRF_EXEMPT_PREFIXES.some((p) => path.startsWith(p)) &&
+    !isSameSiteRequest(ctx.request)
+  ) {
+    return new Response("Cross-site form submissions are not allowed.", { status: 403 });
+  }
 
   if (!isSupabaseConfigured()) {
     return new Response(

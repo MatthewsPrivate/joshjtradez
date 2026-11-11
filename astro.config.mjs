@@ -10,8 +10,10 @@ export default defineConfig({
   adapter: vercel(),
   integrations: [react()],
   security: {
-    // Reject cross-site form POSTs to on-demand routes (CSRF protection).
-    checkOrigin: true,
+    // Disabled: on Vercel, Astro compares against the function's internal URL
+    // and rejects same-site forms. CSRF is enforced in src/middleware.ts instead,
+    // using the Host the browser actually requested.
+    checkOrigin: false,
   },
   vite: {
     plugins: [tailwindcss()],
