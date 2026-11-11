@@ -24,3 +24,6 @@ pnpm-debug.log*
 .vercel/
 .env.*
 !.env.example
+
+# Claude Code personal settings
+.claude/settings.local.json

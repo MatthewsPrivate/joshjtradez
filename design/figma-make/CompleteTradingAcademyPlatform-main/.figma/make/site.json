@@ -1,0 +1,10 @@
+{
+  "description": "A trading education platform for students, teachers, and administrators to manage courses, track learning and trading progress, and access practical learning tools.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
