@@ -1,0 +1,72 @@
+---
+// DEV-ONLY preview of the portal screens with sample data, for reviewing the UI
+// before a Supabase project exists. Returns 404 in production builds.
+// Add ?empty to see the empty states a brand-new academy will show.
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import { Icon } from "../../components/academy/Icon";
+import { AdminOverviewPage, OwnerOverviewPage, StudentOverviewPage, TeacherOverviewPage } from "../../components/academy/Overviews";
+import { lastTwelveMonths } from "../../lib/academy/dashboard";
+import { isRole } from "../../lib/academy/roles";
+
+export const prerender = false;
+if (!import.meta.env.DEV) return new Response(null, { status: 404 });
+
+const portal = Astro.params.portal;
+if (!isRole(portal)) return new Response(null, { status: 404 });
+const empty = Astro.url.searchParams.has("empty");
+const months = lastTwelveMonths();
+const series = (s: number[]) => (empty ? months.map(() => 0) : s);
+const now = new Date().toISOString();
+
+// Stub just enough of locals for the shell (no Supabase project needed).
+const chain: any = { select: () => chain, eq: () => chain, gte: () => Promise.resolve({ count: empty ? 0 : 3 }) };
+Astro.locals.supabase = { from: () => chain } as any;
+Astro.locals.user = { id: "preview", email: "josh@example.com" } as any;
+Astro.locals.roles = ["owner", "admin", "teacher", "student"];
+Astro.locals.permissions = [];
+Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "active" };
+---
+
+<PortalLayout portal={portal} activeSlug="" pageLabel="Overview">
+  <div class="prototype-banner" style="margin-bottom:20px">
+    <Icon name="shield" />
+    <div>
+      <strong>Dev preview · sample data</strong>
+      <p>This page only exists on your local dev server. Real portals are at /academy once Supabase is connected. Add ?empty to the URL to see a brand-new academy.</p>
+    </div>
+  </div>
+  {portal === "student" && (
+    <StudentOverviewPage
+      firstName="Jordan"
+      data={{
+        coursesActive: empty ? 0 : 3, coursesAddedThisMonth: empty ? 0 : 1, learningHours: empty ? 0 : 46.2,
+        hoursByMonth: series([2, 3.5, 1.8, 4, 3.1, 5.2, 4.4, 6, 3.9, 5.1, 3.3, 4]), hoursChange: empty ? null : "+21.2%",
+        lessonsThisWeek: empty ? 0 : 3, weeklyGoal: 5, months,
+        courses: empty ? [] : [
+          { id: "1", slug: "ta", title: "Technical Analysis Mastery", level: "Advanced", instructor: "Josh J", modules: 8, progress: 68, completedLessons: 29, totalLessons: 42 },
+          { id: "2", slug: "fx", title: "Forex Foundations", level: "Foundation", instructor: "Josh J", modules: 6, progress: 92, completedLessons: 26, totalLessons: 28 },
+        ],
+      }}
+    />
+  )}
+  {portal === "teacher" && (
+    <TeacherOverviewPage data={{ coursesTaught: empty ? 0 : 3, assignedStudents: empty ? 0 : 184, newStudentsThisMonth: empty ? 0 : 12, avgCompletion: empty ? null : 78.4, completionsByMonth: series([52, 70, 44, 80, 63, 88, 76, 95, 68, 84, 92, 78]), months }} />
+  )}
+  {portal === "owner" && (
+    <OwnerOverviewPage
+      data={{
+        totalRevenueMinor: empty ? 0 : 48624000, monthRevenueMinor: empty ? 0 : 6280000, monthRevenueChange: empty ? null : "+12.7%",
+        revenueByMonth: series([38, 54, 49, 67, 62, 78, 71, 89, 82, 94, 87, 98].map((v) => v * 50000)), revenueChange12m: empty ? null : "+18.4%",
+        activeStudents: empty ? 0 : 1284, avgCompletion: empty ? null : 76.4, months, currency: "GBP",
+        latestOrders: empty ? [] : [
+          { id: "a1", amount_minor: 79900, refunded_minor: 0, currency: "GBP", status: "paid", provider_reference: "INV-2498", created_at: now, productName: "Advanced Market Structure" },
+          { id: "b2", amount_minor: 24900, refunded_minor: 0, currency: "GBP", status: "paid", provider_reference: "INV-2497", created_at: now, productName: "Forex Foundations" },
+          { id: "c3", amount_minor: 119900, refunded_minor: 0, currency: "GBP", status: "pending", provider_reference: "INV-2496", created_at: now, productName: "Pro Academy Bundle" },
+        ],
+      }}
+    />
+  )}
+  {portal === "admin" && (
+    <AdminOverviewPage data={{ canSeeStudents: true, canSeePayments: true, activeStudents: empty ? 0 : 1284, pendingPayments: empty ? 0 : 12, avgCompletion: empty ? null : 76.4, enrolmentsByMonth: series([5, 8, 6, 9, 12, 10, 14, 11, 15, 13, 17, 16]), enrolmentsChange: empty ? null : "-5.9%", recentEnrolments: empty ? [] : [{ student: "Jordan Blake", course: "Pro Academy Bundle", source: "purchase", status: "active", grantedAt: now }, { student: "Maya Singh", course: "Technical Analysis Mastery", source: "manual", status: "active", grantedAt: now }], months }} />
+  )}
+</PortalLayout>
