@@ -19,7 +19,6 @@ interface Props {
 const { portal, activeSlug, pageLabel, wide = false, previewRoot } = Astro.props;
 const base = portalBase(portal, previewRoot);
 const settingsHref = previewRoot ? `${base}/settings` : "/academy/settings";
-const portalsHref = previewRoot ? "/academy/login" : "/academy";
 const { user, profile, roles, supabase } = Astro.locals;
 
 const name = profile?.display_name || profile?.full_name || user?.email || "Account";
@@ -105,7 +104,6 @@ const paletteItems = [
           </button>
           <div class="popover profile-menu" id="profile-menu" hidden>
             <a href={settingsHref}><Icon name="settings" size={15} /> Account settings</a>
-            {portals.length > 1 && <a href={portalsHref}><Icon name="grid" size={15} /> All portals</a>}
             <form method="post" action="/api/academy/auth/logout">
               <button type="submit"><Icon name="arrow" size={15} /> Sign out</button>
             </form>

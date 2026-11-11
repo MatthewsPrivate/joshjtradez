@@ -34,12 +34,13 @@ export const PORTALS: Record<Role, { label: string; path: string }> = {
 };
 
 /**
- * Which roles may open a given portal. Owners can also step into the admin
- * portal; the developer can open every portal for testing.
+ * Which roles may open a given portal. The developer can open every portal for
+ * testing. (Owners are kept out of the admin portal for now — Josh switches
+ * between Owner and Teacher only.)
  */
 export const PORTAL_ACCESS: Record<Role, readonly Role[]> = {
   owner: ["owner", "developer"],
-  admin: ["admin", "owner", "developer"],
+  admin: ["admin", "developer"],
   teacher: ["teacher", "developer"],
   student: ["student", "developer"],
   developer: ["developer"],
@@ -52,6 +53,12 @@ export function canOpenPortal(portal: Role, roles: readonly Role[]): boolean {
 /** Portals a user can open, highest privilege first. */
 export function availablePortals(roles: readonly Role[]): Role[] {
   return ROLES.filter((portal) => canOpenPortal(portal, roles));
+}
+
+/** Where a user lands after signing in: their highest portal. */
+const LANDING_ORDER: Role[] = ["developer", "owner", "admin", "teacher", "student"];
+export function defaultPortal(roles: readonly Role[]): Role | undefined {
+  return LANDING_ORDER.find((p) => canOpenPortal(p, roles));
 }
 
 export function hasPermission(

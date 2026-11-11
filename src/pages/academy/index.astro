@@ -2,15 +2,17 @@
 import AcademyLayout from "../../layouts/AcademyLayout.astro";
 import { Logo } from "../../components/academy/ui";
 import Flash from "../../components/academy/Flash.astro";
-import { PORTALS, availablePortals } from "../../lib/academy/roles";
+import { PORTALS, availablePortals, defaultPortal } from "../../lib/academy/roles";
 
 export const prerender = false;
 
 const portals = availablePortals(Astro.locals.roles);
-// Most people hold one portal — send them straight in. Staff with several
-// (e.g. Josh: owner + teacher) choose.
-if (portals.length === 1 && !Astro.url.searchParams.has("denied")) {
-  return Astro.redirect(PORTALS[portals[0]!].path);
+// Everyone lands straight in their main portal (Josh → Owner) and switches with
+// the top-right role switcher. This chooser only appears after an access-denied
+// redirect, or for an account with no portal at all.
+const landing = defaultPortal(Astro.locals.roles);
+if (landing && !Astro.url.searchParams.has("denied")) {
+  return Astro.redirect(PORTALS[landing].path);
 }
 const name = Astro.locals.profile?.display_name || Astro.locals.profile?.full_name || "there";
 ---
