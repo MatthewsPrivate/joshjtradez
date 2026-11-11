@@ -63,6 +63,17 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
     db.from("audit_log").select("created_at, action, actor_id, target_type, target_id").order("created_at", { ascending: false }).limit(15),
   ]);
 
+  // Round-trip time from this server to the database: best of 5 sequential tiny
+  // queries (the first may include connection setup). Should be single-digit ms
+  // when the functions run in the same region as Supabase.
+  const rtts: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    const t = performance.now();
+    await db.rpc("is_developer");
+    rtts.push(performance.now() - t);
+  }
+  const dbLatency = Math.min(...rtts);
+
   const sha = runtimeEnv("VERCEL_GIT_COMMIT_SHA");
   return {
     env,
@@ -71,6 +82,8 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
     runtime: [
       { label: "Mode", value: import.meta.env.DEV ? "development (local)" : "production build" },
       { label: "Vercel environment", value: runtimeEnv("VERCEL_ENV") ?? "not on Vercel" },
+      { label: "Function region", value: runtimeEnv("VERCEL_REGION") ?? "local" },
+      { label: "Database round trip", value: `${dbLatency.toFixed(1)} ms (best of 5)` },
       { label: "Git branch", value: runtimeEnv("VERCEL_GIT_COMMIT_REF") ?? "—" },
       { label: "Git commit", value: sha ? sha.slice(0, 7) : "—" },
       { label: "Node.js", value: proc?.version ?? "—" },
