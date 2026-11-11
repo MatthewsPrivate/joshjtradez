@@ -8,6 +8,12 @@ interface ImportMetaEnv {
   readonly ACADEMY_OWNER_EMAILS?: string;
   /** Comma-separated verified emails that get the hidden developer role on sign-in. */
   readonly ACADEMY_DEVELOPER_EMAILS?: string;
+  /** Resend API key — enables emailing contact-form enquiries. */
+  readonly RESEND_API_KEY?: string;
+  /** Where enquiry emails go (defaults to ACADEMY_OWNER_EMAILS). */
+  readonly CONTACT_NOTIFY_EMAIL?: string;
+  /** Sender, e.g. "JoshJTradez <hello@yourdomain.com>" once a domain is verified in Resend. */
+  readonly CONTACT_FROM_EMAIL?: string;
 }
 
 interface ImportMeta {

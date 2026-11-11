@@ -30,7 +30,10 @@ const waHref = whatsappHref();
             />
           </svg>
 
-          <form class="contact-form" data-contact-form novalidate>
+          <form class="contact-form" data-contact-form method="post" action="/api/contact">
+            <!-- Spam traps: hidden field bots fill in, and when the form was opened. -->
+            <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp-field" aria-hidden="true" />
+            <input type="hidden" name="_started" data-form-started />
             {
               CONTACT_FIELDS.map((field) => (
                 <label class="field" data-field={field.name}>
@@ -61,6 +64,7 @@ const waHref = whatsappHref();
 
             <button type="submit" class="btn btn-gold-fill submit-btn" data-submit-btn data-magnetic data-magnetic-radius="160" data-magnetic-strength="0.28">{CONTACT.submitLabel}</button>
 
+            <p class="form-error t-mono" data-form-error role="alert" hidden></p>
             <p class="form-note t-mono">{CONTACT.formNote}</p>
           </form>
 
@@ -314,10 +318,48 @@ const waHref = whatsappHref();
     window.setInterval(shakeTick, 6000);
   }
 
-  // ---- Submit → confetti + crossfade to thank-you ----
+  // ---- Send to /api/contact (saved for Josh + emailed to him) ----
+  const errorBox = document.querySelector<HTMLElement>("[data-form-error]");
+  const started = document.querySelector<HTMLInputElement>("[data-form-started]");
+  if (started) started.value = String(Date.now());
+
+  const ERRORS: Record<number, string> = {
+    422: "Please check the highlighted fields and try again.",
+    429: "Too many attempts — please wait a few minutes, or message Josh on WhatsApp.",
+  };
+
+  async function sendForm(f: HTMLFormElement): Promise<boolean> {
+    const label = submitBtn?.textContent ?? "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending…";
+    }
+    if (errorBox) errorBox.hidden = true;
+    f.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    try {
+      const res = await fetch("/api/contact", { method: "POST", body: new FormData(f) });
+      if (res.ok) return true;
+      const body = (await res.json().catch(() => ({}))) as { fields?: string[] };
+      body.fields?.forEach((name) => f.querySelector(`[name="${CSS.escape(name)}"]`)?.setAttribute("aria-invalid", "true"));
+      throw new Error(ERRORS[res.status] ?? "Something went wrong — please try again, or message Josh on WhatsApp.");
+    } catch (err) {
+      if (errorBox) {
+        errorBox.textContent = err instanceof Error && err.message !== "Failed to fetch" ? err.message : "Couldn't send — check your connection and try again.";
+        errorBox.hidden = false;
+      }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = label;
+      }
+      return false;
+    }
+  }
+
+  // ---- Submit → save, then confetti + crossfade to thank-you ----
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!confettiCanvas || !thanks || !form) return;
+    if (!(await sendForm(form))) return;
 
     if (!reduced) {
       const { default: confetti } = await import("canvas-confetti");
@@ -385,5 +427,25 @@ const waHref = whatsappHref();
   .wa-contact-link:hover {
     color: var(--gold-300);
     border-color: var(--gold-300);
+  }
+</style>
+
+<style>
+  .hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .form-error {
+    grid-column: 1 / -1;
+    color: #f0b3ac;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+  .contact-form :global([aria-invalid="true"]) {
+    border-color: rgba(225, 120, 110, 0.7) !important;
   }
 </style>

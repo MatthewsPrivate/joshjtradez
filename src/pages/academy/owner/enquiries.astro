@@ -1,0 +1,128 @@
+---
+// Website contact-form enquiries ("Send My Details"), newest first.
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../components/academy/Icon";
+import { EmptyState, Metric, PageTitle } from "../../../components/academy/ui";
+import { TIME_ZONE } from "../../../lib/academy/dashboard";
+
+export const prerender = false;
+
+interface Enquiry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  country: string | null;
+  answers: { name: string; label: string; value: string }[];
+  status: "new" | "contacted" | "closed" | "spam";
+  notes: string;
+  email_sent_at: string | null;
+  email_error: string | null;
+  created_at: string;
+}
+
+const FILTERS = ["open", "new", "contacted", "closed", "spam", "all"] as const;
+const filter = FILTERS.find((f) => f === Astro.url.searchParams.get("show")) ?? "open";
+
+const { supabase } = Astro.locals;
+let query = supabase.from("contact_submissions").select("*").order("created_at", { ascending: false }).limit(200);
+if (filter === "open") query = query.in("status", ["new", "contacted"]);
+else if (filter !== "all") query = query.eq("status", filter);
+const [{ data, error }, countsRes] = await Promise.all([query, supabase.from("contact_submissions").select("status, created_at")]);
+const enquiries = (data ?? []) as Enquiry[];
+const all = (countsRes.data ?? []) as { status: string; created_at: string }[];
+const count = (s: string) => all.filter((r) => r.status === s).length;
+const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE });
+const waLink = (phone: string | null, name: string) => {
+  const digits = (phone ?? "").replace(/\D/g, "").replace(/^0/, "27"); // local SA numbers → +27
+  return digits.length >= 8 ? `https://wa.me/${digits}?text=${encodeURIComponent(`Hi ${name.split(" ")[0]}, it's Josh from JoshJTradez — thanks for getting in touch!`)}` : null;
+};
+const here = `/academy/owner/enquiries${filter === "open" ? "" : `?show=${filter}`}`;
+const STATUS_CLASS: Record<string, string> = { new: "amber", contacted: "", closed: "muted", spam: "muted" };
+---
+
+<PortalLayout portal="owner" activeSlug="enquiries" pageLabel="Enquiries">
+  <div class="page-stack">
+    <PageTitle kicker="WEBSITE ENQUIRIES" title="People who want to work with you." description="Everyone who sends their details through the website's contact form. Reply by WhatsApp or email, then mark them as contacted." />
+
+    <div class="metrics-grid compact">
+      <Metric label="New — not yet contacted" value={String(count("new"))} icon="bell" />
+      <Metric label="Contacted" value={String(count("contacted"))} icon="message" />
+      <Metric label="Received this week" value={String(all.filter((r) => r.created_at >= weekAgo).length)} icon="clock" />
+      <Metric label="All time" value={String(all.length - count("spam"))} icon="users" />
+    </div>
+
+    <nav class="tab-line" aria-label="Filter enquiries">
+      {FILTERS.map((f) => (
+        <a class={filter === f ? "active" : undefined} href={f === "open" ? "/academy/owner/enquiries" : `?show=${f}`}>
+          {f === "open" ? "Open" : f[0]!.toUpperCase() + f.slice(1)}
+          {f !== "all" && <span>{f === "open" ? count("new") + count("contacted") : count(f)}</span>}
+        </a>
+      ))}
+    </nav>
+
+    {error && <div class="card"><EmptyState icon="shield" title="Couldn't load enquiries" text="If this is a new setup, the contact_submissions table may not be created yet." /></div>}
+
+    {
+      !error && enquiries.length === 0 ? (
+        <div class="card">
+          <EmptyState icon="message" title="No enquiries here" text={filter === "open" ? "New contact-form submissions from the website will appear here." : "Nothing with this status."} />
+        </div>
+      ) : (
+        <div class="stack">
+          {enquiries.map((e) => {
+            const wa = waLink(e.phone, e.name);
+            const details = e.answers.filter((a) => !["fullName", "email", "phone", "country"].includes(a.name));
+            return (
+              <article class="card panel" id={e.id}>
+                <div class="section-head">
+                  <div>
+                    <span class="kicker">{when(e.created_at)}{e.country ? ` · ${e.country.toUpperCase()}` : ""}</span>
+                    <h2>{e.name}</h2>
+                    <p class="hint" style="margin-top:4px">{e.email}{e.phone ? ` · ${e.phone}` : ""}</p>
+                  </div>
+                  <span class={`status ${STATUS_CLASS[e.status]}`}>{e.status}</span>
+                </div>
+
+                <div class="table-wrap" style="margin-top:14px">
+                  <table style="min-width:0">
+                    <tbody>
+                      {details.map((a) => (
+                        <tr>
+                          <td style="width:38%;vertical-align:top">{a.label}</td>
+                          <td style="white-space:pre-wrap"><strong>{a.value}</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="inline-form" style="margin-top:16px">
+                  {wa && <a class="btn btn-primary btn-sm" href={wa} target="_blank" rel="noopener noreferrer"><Icon name="message" size={14} /> WhatsApp</a>}
+                  <a class="btn btn-outline btn-sm" href={`mailto:${e.email}?subject=${encodeURIComponent("Your JoshJTradez enquiry")}`}><Icon name="arrow" size={14} /> Email</a>
+                  <span style="flex:1" />
+                  {(["new", "contacted", "closed", "spam"] as const).filter((s) => s !== e.status).map((s) => (
+                    <form method="post" action="/api/academy/enquiries">
+                      <input type="hidden" name="id" value={e.id} /><input type="hidden" name="status" value={s} /><input type="hidden" name="_back" value={here} />
+                      <button class="btn btn-ghost btn-sm" type="submit">Mark {s}</button>
+                    </form>
+                  ))}
+                </div>
+
+                <form class="inline-form" method="post" action="/api/academy/enquiries" style="margin-top:10px">
+                  <input type="hidden" name="id" value={e.id} /><input type="hidden" name="_back" value={here} />
+                  <input name="notes" value={e.notes} maxlength="5000" placeholder="Private notes (only you see these)" aria-label="Private notes" />
+                  <button class="btn btn-outline btn-sm" type="submit">Save note</button>
+                </form>
+                {e.email_error && <p class="hint" style="color:var(--red)">Email notification failed: {e.email_error}</p>}
+              </article>
+            );
+          })}
+        </div>
+      )
+    }
+  </div>
+</PortalLayout>

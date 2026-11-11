@@ -10,8 +10,11 @@ export function backTo(form: FormData, fallback: string): string {
 }
 
 export function done(ctx: Pick<APIContext, "redirect">, to: string, flash?: FlashCode) {
-  const clean = to.replace(/([?&])(notice|error)=[^&]*/g, "$1").replace(/[?&]+$/, "").replace(/\?&/, "?");
-  return ctx.redirect(flash ? withQuery(clean, flash as Record<string, string>) : clean, 303);
+  // Keep any #anchor at the end, after the query string.
+  const [path = "", hash] = to.split("#", 2);
+  const clean = path.replace(/([?&])(notice|error)=[^&]*/g, "$1").replace(/[?&]+$/, "").replace(/\?&/, "?");
+  const target = flash ? withQuery(clean, flash as Record<string, string>) : clean;
+  return ctx.redirect(hash ? `${target}#${hash}` : target, 303);
 }
 
 export const str = (form: FormData, name: string, max = 10_000): string => {

@@ -64,6 +64,12 @@ Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "activ
         totalRevenueMinor: empty ? 0 : 48624000, monthRevenueMinor: empty ? 0 : 6280000, monthRevenueChange: empty ? null : "+12.7%",
         revenueByMonth: series([38, 54, 49, 67, 62, 78, 71, 89, 82, 94, 87, 98].map((v) => v * 50000)), revenueChange12m: empty ? null : "+18.4%",
         activeStudents: empty ? 0 : 1284, avgCompletion: empty ? null : 76.4, months, currency: "GBP",
+        newEnquiryCount: empty ? 0 : 4,
+        newEnquiries: empty ? [] : [
+          { id: "e1", name: "Sipho Ndlovu", created_at: now, experience: "Some demo time" },
+          { id: "e2", name: "Aisha Patel", created_at: now, experience: "Live <1yr" },
+          { id: "e3", name: "Liam Botha", created_at: now, experience: "Beginner" },
+        ],
         latestOrders: empty ? [] : [
           { id: "a1", amount_minor: 79900, refunded_minor: 0, currency: "GBP", status: "paid", provider_reference: "INV-2498", created_at: now, productName: "Advanced Market Structure" },
           { id: "b2", amount_minor: 24900, refunded_minor: 0, currency: "GBP", status: "paid", provider_reference: "INV-2497", created_at: now, productName: "Forex Foundations" },

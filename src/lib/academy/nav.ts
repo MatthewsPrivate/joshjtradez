@@ -59,6 +59,7 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   owner: [
     item("Overview", "grid"),
+    item("Enquiries", "message"),
     item("Finance", "wallet"),
     item("Revenue analytics", "chart"),
     item("Student analytics", "users"),

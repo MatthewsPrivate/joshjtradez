@@ -35,6 +35,8 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
     { key: "SUPABASE_SERVICE_ROLE_KEY", set: !!import.meta.env.SUPABASE_SERVICE_ROLE_KEY, required: true, note: "Server-only; bypasses RLS" },
     { key: "ACADEMY_OWNER_EMAILS", set: !!import.meta.env.ACADEMY_OWNER_EMAILS, required: true, note: "Auto-grants Owner + Teacher" },
     { key: "ACADEMY_DEVELOPER_EMAILS", set: !!import.meta.env.ACADEMY_DEVELOPER_EMAILS, required: false, note: "Auto-grants hidden Developer" },
+    { key: "RESEND_API_KEY", set: !!import.meta.env.RESEND_API_KEY, required: false, note: "Emails website enquiries to Josh" },
+    { key: "CONTACT_NOTIFY_EMAIL", set: !!import.meta.env.CONTACT_NOTIFY_EMAIL, required: false, note: "Enquiry recipient (else owner email)" },
   ];
 
   const db = createServiceClient();
@@ -53,6 +55,7 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
       probe("20261111010000_course_progress_view", () => db.from("course_progress").select("user_id", { head: true })),
       probe("20261111020000_platform", () => db.from("notifications").select("id", { head: true })),
       probe("20261111030000_developer_role", () => db.rpc("is_developer")),
+      probe("20261111040000_contact_submissions", () => db.from("contact_submissions").select("id", { head: true })),
     ]),
     Promise.all(
       ["profiles", "courses", "lessons", "enrolments", "orders", "community_posts"].map(async (table) => {

@@ -275,6 +275,9 @@ export interface OwnerOverview {
   activeStudents: number;
   avgCompletion: number | null;
   latestOrders: OrderRow[];
+  /** Website contact-form enquiries not yet contacted (newest first, max 3). */
+  newEnquiries: { id: string; name: string; created_at: string; experience: string | null }[];
+  newEnquiryCount: number;
   months: MonthBucket[];
   currency: string;
 }
@@ -284,7 +287,7 @@ const netMinor = (o: { amount_minor: number; refunded_minor: number }) => o.amou
 
 export async function loadOwnerOverview(supabase: SupabaseClient): Promise<OwnerOverview> {
   const months = lastTwelveMonths();
-  const [ordersRes, latestRes, enrolRes, progRes] = await Promise.all([
+  const [ordersRes, latestRes, enrolRes, progRes, enquiriesRes] = await Promise.all([
     supabase.from("orders").select("amount_minor, refunded_minor, currency, status, created_at").in("status", [...COUNTS_AS_REVENUE]),
     supabase
       .from("orders")
@@ -293,6 +296,12 @@ export async function loadOwnerOverview(supabase: SupabaseClient): Promise<Owner
       .limit(5),
     supabase.from("enrolments").select("user_id").eq("status", "active"),
     supabase.from("course_progress").select("*"),
+    supabase
+      .from("contact_submissions")
+      .select("id, name, created_at, answers", { count: "exact" })
+      .eq("status", "new")
+      .order("created_at", { ascending: false })
+      .limit(3),
   ]);
   throwIf(ordersRes.error, "orders");
   throwIf(latestRes.error, "latest orders");
@@ -322,6 +331,14 @@ export async function loadOwnerOverview(supabase: SupabaseClient): Promise<Owner
     months,
     // Single-currency academy for now; multi-currency reporting would group by currency.
     currency: orders[0]?.currency ?? "GBP",
+    // Tolerates the enquiries table not existing yet (migration not run).
+    newEnquiries: ((enquiriesRes.data ?? []) as { id: string; name: string; created_at: string; answers: { name: string; value: string }[] }[]).map((e) => ({
+      id: e.id,
+      name: e.name,
+      created_at: e.created_at,
+      experience: e.answers.find((a) => a.name === "experience")?.value ?? null,
+    })),
+    newEnquiryCount: enquiriesRes.count ?? 0,
   };
 }
 

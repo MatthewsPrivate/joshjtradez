@@ -112,8 +112,7 @@ export const CONTACT = {
   sub: "Drop your details — Josh will reach out personally within 24 hours.",
   benefitsHeading: "Why Reach Out?",
   submitLabel: "Send My Details →",
-  formNote:
-    "This form scaffolds the Tally embed slot — replace markup with <Tally /> once the form ID lands.",
+  formNote: "Your details go straight to Josh and are never shared.",
   thanksHeading: "Locked in.",
   thanksBody:
     "Josh has your details and will reach out within 24 hours. Welcome to the floor.",

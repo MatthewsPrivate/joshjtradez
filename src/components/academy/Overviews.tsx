@@ -78,13 +78,25 @@ function ChartCard({
   );
 }
 
-function AgendaCard({ kicker, title, empty, href }: { kicker: string; title: string; empty: ReactNode; href: string }) {
+function AgendaCard({
+  kicker,
+  title,
+  empty,
+  href,
+  linkLabel = "View full schedule",
+}: {
+  kicker: string;
+  title: string;
+  empty: ReactNode;
+  href: string;
+  linkLabel?: string;
+}) {
   return (
     <section className="card agenda-card">
       <SectionHead kicker={kicker} title={title} />
       {empty}
       <a className="full-link" href={href}>
-        View full schedule <Icon name="arrow" size={15} />
+        {linkLabel} <Icon name="arrow" size={15} />
       </a>
     </section>
   );
@@ -340,8 +352,25 @@ export function OwnerOverviewPage({ data, base }: { data: OwnerOverview; base?: 
         <AgendaCard
           kicker="TODAY"
           title="Priority actions"
-          href={navHref("owner", "reports", base)}
-          empty={<EmptyState icon="check" title="Nothing needs your attention" text="Payment exceptions and approvals will surface here." />}
+          href={navHref("owner", "enquiries", base)}
+          linkLabel={data.newEnquiryCount ? `View all ${data.newEnquiryCount} new enquiries` : "View enquiries"}
+          empty={
+            data.newEnquiries.length ? (
+              data.newEnquiries.map((e, i) => (
+                <a className="agenda-item" key={e.id} href={`${navHref("owner", "enquiries", base)}#${e.id}`}>
+                  <div className={`time-dot ${i === 0 ? "active" : ""}`} />
+                  <time>{shortDate(e.created_at)}</time>
+                  <div>
+                    <strong>New enquiry: {e.name}</strong>
+                    <span>{e.experience ?? "Website contact form"}</span>
+                  </div>
+                  <Icon name="chevron" size={16} />
+                </a>
+              ))
+            ) : (
+              <EmptyState icon="check" title="Nothing needs your attention" text="New website enquiries and payment exceptions will surface here." />
+            )
+          }
         />
       </div>
       <TableCard
