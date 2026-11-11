@@ -1,5 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
-import { createUserClient } from "./lib/academy/supabase";
+import { bootstrapOwner, shouldBootstrapOwner } from "./lib/academy/bootstrap";
+import { createUserClient, isSupabaseConfigured } from "./lib/academy/supabase";
 import { canOpenPortal, isRole, type Role, type StaffPermission } from "./lib/academy/roles";
 
 // Reachable without a session.
@@ -22,6 +23,16 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   // The marketing site is prerendered and never touches auth.
   if (ctx.isPrerendered || !isAcademyPath(path)) return next();
 
+  if (!isSupabaseConfigured()) {
+    return new Response(
+      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Academy coming soon · JoshJTradez</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#080a09;color:#f4f1e8;font-family:system-ui,sans-serif;text-align:center;padding:24px">
+<div><p style="color:#d8b564;font:600 11px monospace;letter-spacing:.12em">JOSHJTRADEZ ACADEMY</p><h1 style="font-weight:600">The academy is being set up</h1>
+<p style="color:#8f9691">Please check back soon.</p><p><a href="/" style="color:#d8b564">Back to the website</a></p></div>`,
+      { status: 503, headers: { "content-type": "text/html; charset=utf-8", "retry-after": "3600" } },
+    );
+  }
+
   const supabase = createUserClient(ctx);
   ctx.locals.supabase = supabase;
   ctx.locals.roles = [];
@@ -43,6 +54,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     ctx.locals.roles = (roles.data ?? []).map((r) => r.role as Role);
     ctx.locals.permissions = (perms.data ?? []).map((p) => p.permission as StaffPermission);
     ctx.locals.profile = profile.data;
+
+    if (shouldBootstrapOwner(user, ctx.locals.roles)) {
+      ctx.locals.roles.push(...(await bootstrapOwner(user, ctx.locals.roles)));
+    }
   }
 
   const isApi = path.startsWith("/api/");

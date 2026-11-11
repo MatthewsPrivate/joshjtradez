@@ -7,6 +7,10 @@ function requireEnv(name: string, value: string | undefined): string {
   return value;
 }
 
+/** False until the Supabase env vars are set (e.g. a deploy before setup). */
+export const isSupabaseConfigured = () =>
+  Boolean(import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_ANON_KEY);
+
 const url = () => requireEnv("PUBLIC_SUPABASE_URL", import.meta.env.PUBLIC_SUPABASE_URL);
 const anonKey = () =>
   requireEnv("PUBLIC_SUPABASE_ANON_KEY", import.meta.env.PUBLIC_SUPABASE_ANON_KEY);
