@@ -73,9 +73,13 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
 };
 
-export function navHref(portal: Role, slug: string): string {
-  return slug ? `${PORTALS[portal].path}/${slug}` : PORTALS[portal].path;
+/** `base` overrides the portal root (the dev preview serves portals from /dev-preview/<portal>). */
+export function navHref(portal: Role, slug: string, base: string = PORTALS[portal].path): string {
+  return slug ? `${base}/${slug}` : base;
 }
+
+export const portalBase = (portal: Role, previewRoot?: string) =>
+  previewRoot ? `${previewRoot}/${portal}` : PORTALS[portal].path;
 
 export function findNavItem(portal: Role, slug: string): NavItem | undefined {
   return NAV[portal].find((n) => n.slug === slug);

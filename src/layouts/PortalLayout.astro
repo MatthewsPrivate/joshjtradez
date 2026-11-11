@@ -4,7 +4,7 @@
 import AcademyLayout from "./AcademyLayout.astro";
 import { Icon } from "../components/academy/Icon";
 import { EmptyState, Logo, Progress } from "../components/academy/ui";
-import { NAV, navHref } from "../lib/academy/nav";
+import { NAV, navHref, portalBase } from "../lib/academy/nav";
 import { PORTALS, availablePortals, type Role } from "../lib/academy/roles";
 
 interface Props {
@@ -12,9 +12,14 @@ interface Props {
   activeSlug: string;
   pageLabel: string;
   wide?: boolean;
+  /** Dev preview only: serve every portal link under this root instead of /academy. */
+  previewRoot?: string;
 }
 
-const { portal, activeSlug, pageLabel, wide = false } = Astro.props;
+const { portal, activeSlug, pageLabel, wide = false, previewRoot } = Astro.props;
+const base = portalBase(portal, previewRoot);
+const settingsHref = previewRoot ? `${base}/settings` : "/academy/settings";
+const portalsHref = previewRoot ? "/academy/login" : "/academy";
 const { user, profile, roles, supabase } = Astro.locals;
 
 const name = profile?.display_name || profile?.full_name || user?.email || "Account";
@@ -46,9 +51,9 @@ if (portal === "student" && user) {
 }
 
 const paletteItems = [
-  ...NAV[portal].map((n) => ({ label: n.label, href: navHref(portal, n.slug), group: PORTALS[portal].label })),
-  ...portals.filter((p) => p !== portal).map((p) => ({ label: PORTALS[p].label, href: PORTALS[p].path, group: "Switch portal" })),
-  { label: "Account settings", href: "/academy/settings", group: "Account" },
+  ...NAV[portal].map((n) => ({ label: n.label, href: navHref(portal, n.slug, base), group: PORTALS[portal].label })),
+  ...portals.filter((p) => p !== portal).map((p) => ({ label: PORTALS[p].label, href: portalBase(p, previewRoot), group: "Switch portal" })),
+  { label: "Account settings", href: settingsHref, group: "Account" },
 ];
 ---
 
@@ -56,14 +61,14 @@ const paletteItems = [
   <div class="app-shell">
     <aside class="sidebar" id="sidebar" aria-label="Portal navigation">
       <div class="side-logo">
-        <a href={PORTALS[portal].path} aria-label="JoshJTradez Academy home"><Logo /></a>
+        <a href={base} aria-label="JoshJTradez Academy home"><Logo /></a>
         <button class="mobile-close" type="button" data-close-menu aria-label="Close menu"><Icon name="close" /></button>
       </div>
       <nav>
         <span class="nav-label">{portal === "student" ? "LEARN" : "WORKSPACE"}</span>
         {
           NAV[portal].map((item) => (
-            <a href={navHref(portal, item.slug)} class={item.slug === activeSlug ? "active" : undefined} aria-current={item.slug === activeSlug ? "page" : undefined}>
+            <a href={navHref(portal, item.slug, base)} class={item.slug === activeSlug ? "active" : undefined} aria-current={item.slug === activeSlug ? "page" : undefined}>
               <Icon name={item.icon} />
               <span>{item.label}</span>
             </a>
@@ -99,8 +104,8 @@ const paletteItems = [
             <Icon name="more" size={17} />
           </button>
           <div class="popover profile-menu" id="profile-menu" hidden>
-            <a href="/academy/settings"><Icon name="settings" size={15} /> Account settings</a>
-            {portals.length > 1 && <a href="/academy"><Icon name="grid" size={15} /> All portals</a>}
+            <a href={settingsHref}><Icon name="settings" size={15} /> Account settings</a>
+            {portals.length > 1 && <a href={portalsHref}><Icon name="grid" size={15} /> All portals</a>}
             <form method="post" action="/api/academy/auth/logout">
               <button type="submit"><Icon name="arrow" size={15} /> Sign out</button>
             </form>
@@ -148,7 +153,7 @@ const paletteItems = [
             <div class="popover role-menu" id="role-menu" hidden>
               {
                 portals.map((p) => (
-                  <a href={PORTALS[p].path} class={p === portal ? "active" : undefined}>
+                  <a href={portalBase(p, previewRoot)} class={p === portal ? "active" : undefined}>
                     <span>{roleTitle(p)[0]}</span>
                     <div>
                       <strong>{PORTALS[p].label}</strong>

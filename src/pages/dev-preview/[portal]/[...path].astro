@@ -2,17 +2,23 @@
 // DEV-ONLY preview of the portal screens with sample data, for reviewing the UI
 // before a Supabase project exists. Returns 404 in production builds.
 // Add ?empty to see the empty states a brand-new academy will show.
-import PortalLayout from "../../layouts/PortalLayout.astro";
-import { Icon } from "../../components/academy/Icon";
-import { AdminOverviewPage, OwnerOverviewPage, StudentOverviewPage, TeacherOverviewPage } from "../../components/academy/Overviews";
-import { lastTwelveMonths } from "../../lib/academy/dashboard";
-import { isRole } from "../../lib/academy/roles";
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../components/academy/Icon";
+import { AdminOverviewPage, OwnerOverviewPage, StudentOverviewPage, TeacherOverviewPage } from "../../../components/academy/Overviews";
+import { lastTwelveMonths } from "../../../lib/academy/dashboard";
+import { isRole } from "../../../lib/academy/roles";
+import { findNavItem } from "../../../lib/academy/nav";
+import { EmptyState, PageTitle } from "../../../components/academy/ui";
 
 export const prerender = false;
 if (!import.meta.env.DEV) return new Response(null, { status: 404 });
 
 const portal = Astro.params.portal;
 if (!isRole(portal)) return new Response(null, { status: 404 });
+const item = findNavItem(portal, Astro.params.path ?? "");
+if (!item) return new Response(null, { status: 404 });
+const base = `/dev-preview/${portal}`;
+const overview = item.slug === "";
 const empty = Astro.url.searchParams.has("empty");
 const months = lastTwelveMonths();
 const series = (s: number[]) => (empty ? months.map(() => 0) : s);
@@ -27,7 +33,7 @@ Astro.locals.permissions = [];
 Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "active" };
 ---
 
-<PortalLayout portal={portal} activeSlug="" pageLabel="Overview">
+<PortalLayout portal={portal} activeSlug={item.slug} pageLabel={item.label} previewRoot="/dev-preview">
   <div class="prototype-banner" style="margin-bottom:20px">
     <Icon name="shield" />
     <div>
@@ -35,8 +41,8 @@ Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "activ
       <p>This page only exists on your local dev server. Real portals are at /academy once Supabase is connected. Add ?empty to the URL to see a brand-new academy.</p>
     </div>
   </div>
-  {portal === "student" && (
-    <StudentOverviewPage
+  {overview && portal === "student" && (
+    <StudentOverviewPage base={base}
       firstName="Jordan"
       data={{
         coursesActive: empty ? 0 : 3, coursesAddedThisMonth: empty ? 0 : 1, learningHours: empty ? 0 : 46.2,
@@ -49,11 +55,11 @@ Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "activ
       }}
     />
   )}
-  {portal === "teacher" && (
-    <TeacherOverviewPage data={{ coursesTaught: empty ? 0 : 3, assignedStudents: empty ? 0 : 184, newStudentsThisMonth: empty ? 0 : 12, avgCompletion: empty ? null : 78.4, completionsByMonth: series([52, 70, 44, 80, 63, 88, 76, 95, 68, 84, 92, 78]), months }} />
+  {overview && portal === "teacher" && (
+    <TeacherOverviewPage base={base} data={{ coursesTaught: empty ? 0 : 3, assignedStudents: empty ? 0 : 184, newStudentsThisMonth: empty ? 0 : 12, avgCompletion: empty ? null : 78.4, completionsByMonth: series([52, 70, 44, 80, 63, 88, 76, 95, 68, 84, 92, 78]), months }} />
   )}
-  {portal === "owner" && (
-    <OwnerOverviewPage
+  {overview && portal === "owner" && (
+    <OwnerOverviewPage base={base}
       data={{
         totalRevenueMinor: empty ? 0 : 48624000, monthRevenueMinor: empty ? 0 : 6280000, monthRevenueChange: empty ? null : "+12.7%",
         revenueByMonth: series([38, 54, 49, 67, 62, 78, 71, 89, 82, 94, 87, 98].map((v) => v * 50000)), revenueChange12m: empty ? null : "+18.4%",
@@ -66,7 +72,15 @@ Astro.locals.profile = { full_name: "Josh J", display_name: null, status: "activ
       }}
     />
   )}
-  {portal === "admin" && (
-    <AdminOverviewPage data={{ canSeeStudents: true, canSeePayments: true, activeStudents: empty ? 0 : 1284, pendingPayments: empty ? 0 : 12, avgCompletion: empty ? null : 76.4, enrolmentsByMonth: series([5, 8, 6, 9, 12, 10, 14, 11, 15, 13, 17, 16]), enrolmentsChange: empty ? null : "-5.9%", recentEnrolments: empty ? [] : [{ student: "Jordan Blake", course: "Pro Academy Bundle", source: "purchase", status: "active", grantedAt: now }, { student: "Maya Singh", course: "Technical Analysis Mastery", source: "manual", status: "active", grantedAt: now }], months }} />
+  {overview && portal === "admin" && (
+    <AdminOverviewPage base={base} data={{ canSeeStudents: true, canSeePayments: true, activeStudents: empty ? 0 : 1284, pendingPayments: empty ? 0 : 12, avgCompletion: empty ? null : 76.4, enrolmentsByMonth: series([5, 8, 6, 9, 12, 10, 14, 11, 15, 13, 17, 16]), enrolmentsChange: empty ? null : "-5.9%", recentEnrolments: empty ? [] : [{ student: "Jordan Blake", course: "Pro Academy Bundle", source: "purchase", status: "active", grantedAt: now }, { student: "Maya Singh", course: "Technical Analysis Mastery", source: "manual", status: "active", grantedAt: now }], months }} />
+  )}
+  {!overview && (
+    <div class="page-stack">
+      <PageTitle kicker={`${portal.toUpperCase()} PORTAL`} title={item.label} description="This area is being built and will be available in an upcoming release." />
+      <div class="card">
+        <EmptyState icon={item.icon} title="Coming soon" text={`${item.label} is part of a later build milestone.`} />
+      </div>
+    </div>
   )}
 </PortalLayout>

@@ -159,7 +159,7 @@ function greeting(now: Date): string {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-export function StudentOverviewPage({ data, firstName }: { data: StudentOverview; firstName: string }) {
+export function StudentOverviewPage({ data, firstName, base }: { data: StudentOverview; firstName: string; base?: string }) {
   const now = new Date();
   const dateLine = now
     .toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TIME_ZONE })
@@ -167,7 +167,7 @@ export function StudentOverviewPage({ data, firstName }: { data: StudentOverview
     .toUpperCase();
   const goalPct = Math.min(100, (data.lessonsThisWeek / data.weeklyGoal) * 100);
   const hours12m = data.hoursByMonth.reduce((a, b) => a + b, 0);
-  const academy = navHref("student", "my-academy");
+  const academy = navHref("student", "my-academy", base);
 
   return (
     <div className="page-stack">
@@ -215,7 +215,7 @@ export function StudentOverviewPage({ data, firstName }: { data: StudentOverview
         <AgendaCard
           kicker="UP NEXT"
           title="Your schedule"
-          href={navHref("student", "live-classes")}
+          href={navHref("student", "live-classes", base)}
           empty={<EmptyState icon="calendar" title="Nothing scheduled" text="Upcoming live classes and quizzes will show here." />}
         />
       </div>
@@ -268,7 +268,7 @@ export function StudentOverviewPage({ data, firstName }: { data: StudentOverview
 // ---------------------------------------------------------------------------
 // Teacher
 // ---------------------------------------------------------------------------
-export function TeacherOverviewPage({ data }: { data: TeacherOverview }) {
+export function TeacherOverviewPage({ data, base }: { data: TeacherOverview; base?: string }) {
   const total = data.completionsByMonth.reduce((a, b) => a + b, 0);
   return (
     <div className="page-stack">
@@ -293,14 +293,14 @@ export function TeacherOverviewPage({ data }: { data: TeacherOverview }) {
         <AgendaCard
           kicker="TODAY"
           title="Priority actions"
-          href={navHref("teacher", "live-classes")}
+          href={navHref("teacher", "live-classes", base)}
           empty={<EmptyState icon="check" title="You're all caught up" text="Grading and class reminders will appear here." />}
         />
       </div>
       <TableCard
         kicker="RECENT ACTIVITY"
         title="Submissions"
-        href={navHref("teacher", "grading-centre")}
+        href={navHref("teacher", "grading-centre", base)}
         headers={[]}
         rows={[]}
         empty={<EmptyState icon="note" title="No submissions yet" text="Student assignment submissions will be listed here for grading." />}
@@ -312,7 +312,7 @@ export function TeacherOverviewPage({ data }: { data: TeacherOverview }) {
 // ---------------------------------------------------------------------------
 // Owner
 // ---------------------------------------------------------------------------
-export function OwnerOverviewPage({ data }: { data: OwnerOverview }) {
+export function OwnerOverviewPage({ data, base }: { data: OwnerOverview; base?: string }) {
   const money = (m: number, compact = false) => formatMoney(m, data.currency, compact);
   const last12 = data.revenueByMonth.reduce((a, b) => a + b, 0);
   return (
@@ -338,14 +338,14 @@ export function OwnerOverviewPage({ data }: { data: OwnerOverview }) {
         <AgendaCard
           kicker="TODAY"
           title="Priority actions"
-          href={navHref("owner", "reports")}
+          href={navHref("owner", "reports", base)}
           empty={<EmptyState icon="check" title="Nothing needs your attention" text="Payment exceptions and approvals will surface here." />}
         />
       </div>
       <TableCard
         kicker="RECENT ACTIVITY"
         title="Latest transactions"
-        href={navHref("owner", "finance")}
+        href={navHref("owner", "finance", base)}
         headers={["Reference", "Product", "Amount", "Status", "Date"]}
         rows={data.latestOrders.map((o) => [
           <strong className="mono">{o.provider_reference ?? o.id.slice(0, 8).toUpperCase()}</strong>,
@@ -363,7 +363,7 @@ export function OwnerOverviewPage({ data }: { data: OwnerOverview }) {
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
-export function AdminOverviewPage({ data }: { data: AdminOverview }) {
+export function AdminOverviewPage({ data, base }: { data: AdminOverview; base?: string }) {
   const total = data.enrolmentsByMonth.reduce((a, b) => a + b, 0);
   const noAccess = "No access";
   return (
@@ -389,14 +389,14 @@ export function AdminOverviewPage({ data }: { data: AdminOverview }) {
         <AgendaCard
           kicker="TODAY"
           title="Priority actions"
-          href={navHref("admin", "live-classes")}
+          href={navHref("admin", "live-classes", base)}
           empty={<EmptyState icon="check" title="Nothing needs your attention" text="Escalations and exceptions will surface here." />}
         />
       </div>
       <TableCard
         kicker="RECENT ACTIVITY"
         title="Enrolment activity"
-        href={navHref("admin", "enrolments")}
+        href={navHref("admin", "enrolments", base)}
         headers={["Student", "Course", "Source", "Status", "Date"]}
         rows={data.recentEnrolments.map((e) => [
           <strong>{e.student}</strong>,
