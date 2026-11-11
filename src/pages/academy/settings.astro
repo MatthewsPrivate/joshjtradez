@@ -6,11 +6,6 @@ import Flash from "../../components/academy/Flash.astro";
 export const prerender = false;
 
 const user = Astro.locals.user!;
-const discord = user.identities?.find((i) => i.provider === "discord");
-const discordName =
-  (discord?.identity_data?.full_name as string | undefined) ??
-  (discord?.identity_data?.name as string | undefined) ??
-  (discord?.identity_data?.user_name as string | undefined);
 ---
 
 <AcademyLayout title="Account settings">
@@ -20,24 +15,6 @@ const discordName =
       <h1>Account settings</h1>
       <p class="lede">{user.email}</p>
       <Flash />
-
-      <section class="form-stack settings-section">
-        <span class="kicker">DISCORD</span>
-        {discord ? (
-          <>
-            <p class="lede">Linked{discordName ? ` as ${discordName}` : ""}.</p>
-            <form class="form-stack" method="post" action="/api/academy/auth/discord">
-              <input type="hidden" name="intent" value="unlink" />
-              <button type="submit" class="btn btn-outline">Unlink Discord</button>
-            </form>
-          </>
-        ) : (
-          <form class="form-stack" method="post" action="/api/academy/auth/discord">
-            <input type="hidden" name="intent" value="link" />
-            <button type="submit" class="btn btn-primary">Link Discord</button>
-          </form>
-        )}
-      </section>
 
       <form class="form-stack settings-section" method="post" action="/api/academy/auth/reset">
         <span class="kicker">CHANGE PASSWORD</span>

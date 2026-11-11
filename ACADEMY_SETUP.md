@@ -32,8 +32,6 @@ In Supabase, go to **Authentication**:
 | Sign In / Providers → Email | **Confirm email: ON.** This must stay on: it's what stops someone else claiming Josh's owner account. |
 | URL Configuration → Site URL | `https://joshjtradez.vercel.app` |
 | URL Configuration → Redirect URLs | add `https://joshjtradez.vercel.app/academy/auth/callback` and `http://localhost:4321/academy/auth/callback` |
-| Sign In / Providers → (scroll down) | **Allow manual linking: ON** (needed for "Link Discord") |
-| Sign In / Providers → Discord | Optional, for Discord linking. Create an app at <https://discord.com/developers/applications>. Under OAuth2, add the redirect `https://<your-project-ref>.supabase.co/auth/v1/callback`. Then paste the Client ID and Secret here. |
 
 **Before launch:** Supabase's built-in email sender only allows a handful of emails per hour. Set up your own SMTP sender (for example Resend or Postmark) under **Authentication → Emails → SMTP Settings**.
 
@@ -98,4 +96,3 @@ To remove developer access later, take the email out of `ACADEMY_DEVELOPER_EMAIL
 
 - **"That email and password don't match"**: check the email was confirmed first.
 - **Josh isn't recognised as Owner**: the email in `ACADEMY_OWNER_EMAILS` must match exactly (capital letters don't matter). After changing it, restart or redeploy.
-- **Discord linking fails**: check that manual linking is ON, and that the Discord redirect URL matches exactly.
