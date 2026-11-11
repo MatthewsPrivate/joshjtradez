@@ -1,0 +1,19 @@
+---
+import AcademyLayout from "../../layouts/AcademyLayout.astro";
+import { Logo } from "../../components/academy/ui";
+
+export const prerender = false;
+---
+
+<AcademyLayout title="Account suspended">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      <h1>Account suspended</h1>
+      <p class="lede">Your academy access is currently paused. Please contact support if you think this is a mistake.</p>
+      <form method="post" action="/api/academy/auth/logout">
+        <button type="submit" class="btn btn-outline">Sign out</button>
+      </form>
+    </div>
+  </main>
+</AcademyLayout>

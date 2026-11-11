@@ -1,0 +1,33 @@
+---
+// Renders ?error= / ?notice= codes from the URL as fixed, known messages.
+// Unknown codes render nothing, so the query string can't inject text.
+const MESSAGES: Record<string, string> = {
+  // errors
+  missing: "Please fill in every field.",
+  invalid: "That email and password don't match an account.",
+  unconfirmed: "Please confirm your email first — check your inbox for the link.",
+  weak: "Use a password of at least 10 characters.",
+  mismatch: "The two passwords don't match.",
+  same: "Choose a password you haven't used on this account.",
+  failed: "Something went wrong. Please try again.",
+  "link-expired": "That link has expired or was already used. Please request a new one.",
+  "discord-link": "We couldn't start Discord linking. Please try again.",
+  "discord-unlink": "We couldn't unlink Discord. You need at least one other way to sign in.",
+  // notices
+  "check-email": "Check your inbox to confirm your email address, then sign in.",
+  "signed-out": "You've been signed out.",
+  sent: "If an account exists for that email, a reset link is on its way.",
+  "password-updated": "Your password has been updated.",
+  "discord-linked": "Discord is now linked to your account.",
+  "discord-unlinked": "Discord has been unlinked.",
+  denied: "You don't have access to that portal.",
+};
+
+const error = Astro.url.searchParams.get("error");
+const notice = Astro.url.searchParams.get("notice") ?? (Astro.url.searchParams.get("denied") ? "denied" : null);
+const errorText = error ? MESSAGES[error] : undefined;
+const noticeText = notice ? MESSAGES[notice] : undefined;
+---
+
+{errorText && <p class="flash flash-error" role="alert">{errorText}</p>}
+{noticeText && <p class="flash flash-notice" role="status">{noticeText}</p>}

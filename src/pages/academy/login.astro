@@ -1,0 +1,30 @@
+---
+import AcademyLayout from "../../layouts/AcademyLayout.astro";
+import { Logo } from "../../components/academy/ui";
+import Flash from "../../components/academy/Flash.astro";
+import { safeNext } from "../../lib/academy/http";
+
+export const prerender = false;
+const next = safeNext(Astro.url.searchParams.get("next"));
+---
+
+<AcademyLayout title="Sign in">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      <h1>Welcome back</h1>
+      <p class="lede">Sign in to your academy account.</p>
+      <Flash />
+      <form class="form-stack" method="post" action="/api/academy/auth/login">
+        <input type="hidden" name="next" value={next} />
+        <label>Email<input type="email" name="email" autocomplete="email" required /></label>
+        <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
+        <button type="submit" class="btn btn-primary">Sign in</button>
+      </form>
+      <div class="auth-links">
+        <a href="/academy/forgot-password">Forgot password?</a>
+        <a href="/academy/signup">Create an account</a>
+      </div>
+    </div>
+  </main>
+</AcademyLayout>

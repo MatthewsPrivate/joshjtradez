@@ -1,0 +1,281 @@
+---
+// Portal shell from the Figma Make design: sidebar, top bar, popovers, ⌘K palette.
+// Server-rendered; the small script at the bottom handles menus and the palette.
+import AcademyLayout from "./AcademyLayout.astro";
+import { Icon } from "../components/academy/Icon";
+import { EmptyState, Logo, Progress } from "../components/academy/ui";
+import { NAV, navHref } from "../lib/academy/nav";
+import { PORTALS, availablePortals, type Role } from "../lib/academy/roles";
+
+interface Props {
+  portal: Role;
+  activeSlug: string;
+  pageLabel: string;
+  wide?: boolean;
+}
+
+const { portal, activeSlug, pageLabel, wide = false } = Astro.props;
+const { user, profile, roles, supabase } = Astro.locals;
+
+const name = profile?.display_name || profile?.full_name || user?.email || "Account";
+const initials =
+  name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("") || "?";
+const roleTitle = (r: Role) => r[0]!.toUpperCase() + r.slice(1);
+const roleLine = roles
+  .filter((r) => r !== "student" || roles.length === 1)
+  .map(roleTitle)
+  .join(" · ");
+const portals = availablePortals(roles);
+
+// Sidebar card: students see their weekly lesson goal; staff see their access.
+let weekly: { done: number; goal: number } | null = null;
+if (portal === "student" && user) {
+  const now = new Date();
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)));
+  const { count } = await supabase
+    .from("lesson_progress")
+    .select("lesson_id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("completed_at", monday.toISOString());
+  weekly = { done: count ?? 0, goal: 5 };
+}
+
+const paletteItems = [
+  ...NAV[portal].map((n) => ({ label: n.label, href: navHref(portal, n.slug), group: PORTALS[portal].label })),
+  ...portals.filter((p) => p !== portal).map((p) => ({ label: PORTALS[p].label, href: PORTALS[p].path, group: "Switch portal" })),
+  { label: "Account settings", href: "/academy/settings", group: "Account" },
+];
+---
+
+<AcademyLayout title={`${pageLabel} · ${PORTALS[portal].label}`}>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Portal navigation">
+      <div class="side-logo">
+        <a href={PORTALS[portal].path} aria-label="JoshJTradez Academy home"><Logo /></a>
+        <button class="mobile-close" type="button" data-close-menu aria-label="Close menu"><Icon name="close" /></button>
+      </div>
+      <nav>
+        <span class="nav-label">{portal === "student" ? "LEARN" : "WORKSPACE"}</span>
+        {
+          NAV[portal].map((item) => (
+            <a href={navHref(portal, item.slug)} class={item.slug === activeSlug ? "active" : undefined} aria-current={item.slug === activeSlug ? "page" : undefined}>
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+            </a>
+          ))
+        }
+      </nav>
+      <div class="side-bottom">
+        <div class="upgrade">
+          {
+            weekly ? (
+              <>
+                <span class="kicker">WEEKLY GOAL</span>
+                <strong>{weekly.done} of {weekly.goal} lessons this week</strong>
+                <Progress value={(weekly.done / weekly.goal) * 100} />
+                <small>Resets every Monday</small>
+              </>
+            ) : (
+              <>
+                <span class="kicker">YOUR ACCESS</span>
+                <strong>{roleLine || "—"}</strong>
+                <small>{portals.length} portal{portals.length === 1 ? "" : "s"} available</small>
+              </>
+            )
+          }
+        </div>
+        <div class="profile-wrap">
+          <button class="profile-mini" type="button" data-popover-toggle="profile-menu" aria-expanded="false" aria-controls="profile-menu">
+            <div class="avatar">{initials}</div>
+            <span>
+              <strong>{name}</strong>
+              <small>{roleLine}</small>
+            </span>
+            <Icon name="more" size={17} />
+          </button>
+          <div class="popover profile-menu" id="profile-menu" hidden>
+            <a href="/academy/settings"><Icon name="settings" size={15} /> Account settings</a>
+            {portals.length > 1 && <a href="/academy"><Icon name="grid" size={15} /> All portals</a>}
+            <form method="post" action="/api/academy/auth/logout">
+              <button type="submit"><Icon name="arrow" size={15} /> Sign out</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <button class="mobile-overlay" type="button" data-close-menu aria-label="Close menu" hidden></button>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="mobile-brand">
+          <button class="icon-btn" type="button" data-open-menu aria-label="Open menu" aria-controls="sidebar"><Icon name="menu" /></button>
+          <Logo compact />
+        </div>
+        <div class="crumb">
+          <span>{portal} portal</span>
+          <Icon name="chevron" size={13} />
+          <strong>{pageLabel}</strong>
+        </div>
+        <div class="top-actions">
+          <button class="search-trigger" type="button" data-palette-open aria-haspopup="dialog">
+            <Icon name="search" />
+            <span>Search anything</span>
+            <kbd data-kbd>Ctrl K</kbd>
+          </button>
+          <div class="popover-wrap">
+            <button class="icon-btn notification" type="button" data-popover-toggle="notifications" aria-expanded="false" aria-controls="notifications" aria-label="Notifications">
+              <Icon name="bell" />
+            </button>
+            <div class="popover notifications" id="notifications" hidden>
+              <div class="section-head"><h3>Notifications</h3></div>
+              <EmptyState icon="bell" title="You're all caught up" text="Class reminders, replies and results will appear here." />
+            </div>
+          </div>
+          <div class="role-wrap">
+            <button class="role-trigger" type="button" data-popover-toggle="role-menu" aria-expanded="false" aria-controls="role-menu">
+              <span>{initials}</span>
+              <div>
+                <small>VIEW AS</small>
+                <strong>{roleTitle(portal)}</strong>
+              </div>
+              <Icon name="chevron" size={14} />
+            </button>
+            <div class="popover role-menu" id="role-menu" hidden>
+              {
+                portals.map((p) => (
+                  <a href={PORTALS[p].path} class={p === portal ? "active" : undefined}>
+                    <span>{roleTitle(p)[0]}</span>
+                    <div>
+                      <strong>{PORTALS[p].label}</strong>
+                      <small>{name}</small>
+                    </div>
+                    {p === portal && <Icon name="check" size={16} />}
+                  </a>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class={wide ? "lesson-page-wrap" : undefined}>
+        <slot />
+      </main>
+    </div>
+  </div>
+
+  <div class="palette-bg" id="palette" role="dialog" aria-modal="true" aria-label="Search" hidden>
+    <div class="palette">
+      <label class="search-box">
+        <Icon name="search" />
+        <input type="text" placeholder="Search pages…" autocomplete="off" aria-controls="palette-list" data-palette-input />
+      </label>
+      <ul id="palette-list" role="listbox">
+        {
+          paletteItems.map((p) => (
+            <li>
+              <a href={p.href} role="option" data-label={p.label.toLowerCase()}>
+                {p.label}
+                <small>{p.group}</small>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</AcademyLayout>
+
+<script>
+  const popovers = () => document.querySelectorAll<HTMLElement>(".popover");
+  const toggles = () => document.querySelectorAll<HTMLElement>("[data-popover-toggle]");
+
+  function closePopovers(except?: HTMLElement) {
+    popovers().forEach((p) => p !== except && (p.hidden = true));
+    toggles().forEach((t) => t.dataset.popoverToggle !== except?.id && t.setAttribute("aria-expanded", "false"));
+  }
+
+  toggles().forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const target = document.getElementById(btn.dataset.popoverToggle!);
+      if (!target) return;
+      const open = target.hidden;
+      closePopovers(target);
+      target.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+    }),
+  );
+  document.addEventListener("click", (e) => {
+    if (!(e.target as Element).closest(".popover")) closePopovers();
+  });
+
+  // Mobile sidebar
+  const sidebar = document.getElementById("sidebar")!;
+  const overlay = document.querySelector<HTMLElement>(".mobile-overlay")!;
+  const setMenu = (open: boolean) => {
+    sidebar.classList.toggle("mobile-open", open);
+    overlay.hidden = !open;
+  };
+  document.querySelector("[data-open-menu]")?.addEventListener("click", () => setMenu(true));
+  document.querySelectorAll("[data-close-menu]").forEach((b) => b.addEventListener("click", () => setMenu(false)));
+
+  // ⌘K / Ctrl K palette
+  const palette = document.getElementById("palette")!;
+  const input = palette.querySelector<HTMLInputElement>("[data-palette-input]")!;
+  const links = [...palette.querySelectorAll<HTMLAnchorElement>("a[data-label]")];
+  let selected = 0;
+
+  if (/Mac|iPhone|iPad/.test(navigator.userAgent)) {
+    const kbd = document.querySelector("[data-kbd]");
+    if (kbd) kbd.textContent = "⌘ K";
+  }
+
+  const visible = () => links.filter((a) => !a.parentElement!.hidden);
+  function highlight(i: number) {
+    const v = visible();
+    selected = v.length ? (i + v.length) % v.length : 0;
+    links.forEach((a) => a.setAttribute("aria-selected", "false"));
+    v[selected]?.setAttribute("aria-selected", "true");
+    v[selected]?.scrollIntoView({ block: "nearest" });
+  }
+  function openPalette() {
+    closePopovers();
+    palette.hidden = false;
+    input.value = "";
+    links.forEach((a) => (a.parentElement!.hidden = false));
+    highlight(0);
+    input.focus();
+  }
+  const closePalette = () => (palette.hidden = true);
+
+  document.querySelector("[data-palette-open]")?.addEventListener("click", openPalette);
+  palette.addEventListener("click", (e) => e.target === palette && closePalette());
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    links.forEach((a) => (a.parentElement!.hidden = !a.dataset.label!.includes(q)));
+    highlight(0);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      highlight(selected + (e.key === "ArrowDown" ? 1 : -1));
+    } else if (e.key === "Enter") {
+      visible()[selected]?.click();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      palette.hidden ? openPalette() : closePalette();
+    } else if (e.key === "Escape") {
+      closePalette();
+      closePopovers();
+      setMenu(false);
+    }
+  });
+</script>

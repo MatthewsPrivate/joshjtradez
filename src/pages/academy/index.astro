@@ -1,0 +1,35 @@
+---
+import AcademyLayout from "../../layouts/AcademyLayout.astro";
+import { Logo } from "../../components/academy/ui";
+import Flash from "../../components/academy/Flash.astro";
+import { PORTALS, availablePortals } from "../../lib/academy/roles";
+
+export const prerender = false;
+
+const portals = availablePortals(Astro.locals.roles);
+// Most people hold one portal — send them straight in. Staff with several
+// (e.g. Josh: owner + teacher) choose.
+if (portals.length === 1 && !Astro.url.searchParams.has("denied")) {
+  return Astro.redirect(PORTALS[portals[0]!].path);
+}
+const name = Astro.locals.profile?.display_name || Astro.locals.profile?.full_name || "there";
+---
+
+<AcademyLayout title="Choose a portal">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      <h1>Hi {name}</h1>
+      <p class="lede">Which portal would you like to open?</p>
+      <Flash />
+      <nav class="form-stack" aria-label="Portals">
+        {portals.map((p) => <a class="btn btn-outline" href={PORTALS[p].path}>{PORTALS[p].label}</a>)}
+      </nav>
+      {portals.length === 0 && <p class="lede">Your account has no portal access yet. Please contact support.</p>}
+      <div class="auth-links">
+        <a href="/academy/settings">Account settings</a>
+        <form method="post" action="/api/academy/auth/logout"><button class="link-btn">Sign out</button></form>
+      </div>
+    </div>
+  </main>
+</AcademyLayout>

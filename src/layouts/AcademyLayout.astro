@@ -1,0 +1,33 @@
+---
+// Academy document shell. Uses the academy design system (src/styles/academy.css,
+// ported from the Figma Make export) instead of the marketing site's globals.css,
+// and skips the marketing motion layer (Lenis, ambient canvas, lightbox).
+import "../styles/academy.css";
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#080a09" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <title>{title} · JoshJTradez Academy</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

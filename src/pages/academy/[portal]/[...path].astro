@@ -1,0 +1,76 @@
+---
+// All four portals. Middleware has already verified the user may open this portal.
+// Each page loads its own data server-side through the user's RLS-scoped client.
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { EmptyState, PageTitle } from "../../../components/academy/ui";
+import {
+  AdminOverviewPage,
+  OwnerOverviewPage,
+  StudentOverviewPage,
+  TeacherOverviewPage,
+} from "../../../components/academy/Overviews";
+import {
+  loadAdminOverview,
+  loadOwnerOverview,
+  loadStudentOverview,
+  loadTeacherOverview,
+} from "../../../lib/academy/dashboard";
+import { findNavItem } from "../../../lib/academy/nav";
+import { isRole } from "../../../lib/academy/roles";
+
+export const prerender = false;
+
+const { portal, path = "" } = Astro.params;
+if (!isRole(portal)) return new Response(null, { status: 404 });
+const item = findNavItem(portal, path);
+if (!item) return new Response(null, { status: 404 });
+
+// Account settings are shared across portals.
+if (item.slug === "settings") return Astro.redirect("/academy/settings");
+
+const { supabase, user, roles, permissions, profile } = Astro.locals;
+let failed = false;
+let student: Awaited<ReturnType<typeof loadStudentOverview>> | null = null;
+let teacher: Awaited<ReturnType<typeof loadTeacherOverview>> | null = null;
+let owner: Awaited<ReturnType<typeof loadOwnerOverview>> | null = null;
+let admin: Awaited<ReturnType<typeof loadAdminOverview>> | null = null;
+
+if (item.slug === "") {
+  try {
+    if (portal === "student") student = await loadStudentOverview(supabase, user!.id);
+    else if (portal === "teacher") teacher = await loadTeacherOverview(supabase, user!.id);
+    else if (portal === "owner") owner = await loadOwnerOverview(supabase);
+    else admin = await loadAdminOverview(supabase, roles, permissions);
+  } catch (err) {
+    console.error(err);
+    failed = true;
+  }
+}
+
+const firstName = (profile?.display_name || profile?.full_name || "").split(" ")[0] ?? "";
+---
+
+<PortalLayout portal={portal} activeSlug={item.slug} pageLabel={item.label}>
+  {
+    failed ? (
+      <div class="card">
+        <EmptyState icon="shield" title="We couldn't load this page" text="Please refresh. If it keeps happening, contact support." />
+      </div>
+    ) : student ? (
+      <StudentOverviewPage data={student} firstName={firstName} />
+    ) : teacher ? (
+      <TeacherOverviewPage data={teacher} />
+    ) : owner ? (
+      <OwnerOverviewPage data={owner} />
+    ) : admin ? (
+      <AdminOverviewPage data={admin} />
+    ) : (
+      <div class="page-stack">
+        <PageTitle kicker={`${portal.toUpperCase()} PORTAL`} title={item.label} description="This area is being built and will be available in an upcoming release." />
+        <div class="card">
+          <EmptyState icon={item.icon} title="Coming soon" text={`${item.label} is part of a later build milestone.`} />
+        </div>
+      </div>
+    )
+  }
+</PortalLayout>
