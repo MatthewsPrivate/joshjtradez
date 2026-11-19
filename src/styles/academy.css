@@ -88,28 +88,12 @@
 .logo > span:last-child > span {
   color: var(--gold);
 }
-.logo-mark {
-  width: 27px;
-  height: 28px;
-  display: flex;
-  align-items: end;
-  gap: 3px;
-  transform: skew(-10deg);
+.logo {
+  font-size: 15px;
+  letter-spacing: 0.06em;
 }
-.logo-mark i {
-  display: block;
-  width: 6px;
-  background: var(--gold);
-  border-radius: 1px;
-}
-.logo-mark i:nth-child(1) {
-  height: 12px;
-}
-.logo-mark i:nth-child(2) {
-  height: 21px;
-}
-.logo-mark i:nth-child(3) {
-  height: 27px;
+.logo.compact {
+  font-size: 13px;
 }
 .sidebar nav {
   padding: 22px 12px;
@@ -2199,9 +2183,6 @@
   .topbar {
     padding: 0 10px;
   }
-  .mobile-brand .logo-mark {
-    width: 22px;
-  }
   .app-main > main {
     padding: 20px 12px 38px;
   }
@@ -3450,4 +3431,109 @@
 }
 .roster .row-actions .btn + .btn {
   margin-left: 6px;
+}
+
+/* Owner → Products */
+.product-list {
+  margin-top: 10px;
+}
+.product-row {
+  border-top: 1px solid var(--line);
+  padding: 14px 4px;
+}
+.product-row summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+.product-row summary::-webkit-details-marker {
+  display: none;
+}
+.product-row summary strong {
+  display: block;
+  font-size: 13px;
+}
+.product-row summary small {
+  display: block;
+  color: var(--muted-2);
+  font: 8px "JetBrains Mono";
+  margin-top: 4px;
+}
+.product-row[open] summary {
+  margin-bottom: 18px;
+}
+.chip-check.gold input:checked + span {
+  color: var(--gold-light);
+  border-color: rgba(216, 181, 100, 0.45);
+  background: rgba(216, 181, 100, 0.08);
+}
+.product-form .check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.product-form .check-row input {
+  width: auto;
+  margin: 0;
+}
+@media (max-width: 800px) {
+  .product-row summary {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+/* Verification codes + two-factor */
+.code-input {
+  font: 600 22px "JetBrains Mono" !important;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+.mfa-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(216, 181, 100, 0.35);
+  background: rgba(216, 181, 100, 0.06);
+  color: var(--gold-light);
+  font-size: 11px;
+}
+.mfa-banner span {
+  flex: 1;
+}
+.mfa-banner:hover {
+  background: rgba(216, 181, 100, 0.1);
+}
+.mfa-steps {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.mfa-steps li {
+  margin-bottom: 10px;
+}
+.mfa-qr {
+  margin: 12px 0 8px;
+  padding: 10px;
+  background: #fff;
+  width: max-content;
+}
+.mfa-qr img {
+  display: block;
+}
+.mfa-secret {
+  display: block;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font: 12px "JetBrains Mono";
+  word-break: break-all;
+  color: var(--text);
 }

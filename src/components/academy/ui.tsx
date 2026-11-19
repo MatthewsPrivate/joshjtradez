@@ -3,19 +3,13 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./Icon";
 
+/** Text wordmark. `compact` is the smaller size used in the mobile top bar. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="logo">
-      <span className="logo-mark">
-        <i />
-        <i />
-        <i />
+    <div className={compact ? "logo compact" : "logo"}>
+      <span>
+        JOSHJ<span>TRADEZ</span>
       </span>
-      {!compact && (
-        <span>
-          JOSHJ<span>TRADEZ</span>
-        </span>
-      )}
     </div>
   );
 }
