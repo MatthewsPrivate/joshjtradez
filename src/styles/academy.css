@@ -3001,3 +3001,388 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Trading journal + trade reviews
+   --------------------------------------------------------------------------- */
+.page-stack.narrow {
+  max-width: 860px;
+}
+.trade-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 26px;
+}
+.trade-form legend {
+  font: 600 9px "JetBrains Mono";
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+}
+.trade-form legend .hint {
+  display: inline;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: "Inter Tight", sans-serif;
+}
+.input-pair {
+  display: flex;
+  gap: 6px;
+}
+.input-pair input {
+  flex: 1;
+  min-width: 0;
+}
+.form-grid .input-pair select {
+  width: auto;
+  flex: none;
+}
+.field-label {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  margin-bottom: 8px;
+}
+.chip-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.form-grid .chip-check {
+  cursor: pointer;
+}
+.form-grid .chip-check input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.chip-check span {
+  display: inline-block;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  transition: 0.15s;
+}
+.chip-check input:checked + span {
+  color: var(--red);
+  border-color: rgba(225, 120, 110, 0.45);
+  background: rgba(225, 120, 110, 0.08);
+}
+.chip-check input:focus-visible + span {
+  outline: 1px solid var(--gold);
+}
+
+.trade-summary .tags {
+  padding: 14px 0 0;
+  border: 0;
+  flex-wrap: wrap;
+}
+.trade-summary .tags.mistakes span {
+  color: var(--red);
+  background: rgba(225, 120, 110, 0.08);
+}
+.trade-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+.trade-head h2 {
+  font-size: 22px;
+  margin-top: 8px;
+}
+.trade-head .direction {
+  font-size: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.trade-result {
+  font-size: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.trade-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin: 20px 0 0;
+}
+.trade-facts > div {
+  background: var(--surface);
+  padding: 12px;
+}
+.trade-facts dt {
+  color: var(--muted-2);
+  font: 8px "JetBrains Mono";
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.trade-facts dd {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.trade-facts dd.up,
+.trade-facts dd.down {
+  color: inherit;
+}
+.trade-facts dd.up { color: var(--green); }
+.trade-facts dd.down { color: var(--red); }
+.trade-notes {
+  margin-top: 20px;
+}
+.trade-notes h3,
+.mini-head {
+  font: 600 9px "JetBrains Mono";
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin: 0 0 8px;
+}
+.mini-head {
+  margin-top: 18px;
+}
+.trade-notes p,
+.thread p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trade-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+.trade-shots figure {
+  margin: 0;
+}
+.trade-shots img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: #000;
+}
+.trade-shots form {
+  margin-top: 6px;
+}
+
+.thread {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.thread li {
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.thread li.from-staff {
+  border-color: rgba(216, 181, 100, 0.3);
+  background: rgba(216, 181, 100, 0.04);
+}
+.thread-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.thread-meta small {
+  color: var(--muted-2);
+  font: 8px "JetBrains Mono";
+}
+.thread-delete {
+  margin-left: auto;
+}
+.thread-delete .text-btn {
+  font-size: 9px;
+  color: var(--muted-2);
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.insight {
+  padding: 20px;
+}
+.insight strong {
+  display: block;
+  font-size: 16px;
+  margin: 10px 0 6px;
+}
+.insight p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.insight.warn strong {
+  color: var(--red);
+}
+.mini-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.mini-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.mini-list li:last-child {
+  border-bottom: 0;
+}
+.mini-list li > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.mini-list small {
+  color: var(--muted-2);
+  font: 8px "JetBrains Mono";
+}
+.mini-list a {
+  color: var(--text);
+}
+.mini-list .direction {
+  margin-left: 4px;
+}
+
+.settings-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  list-style: none;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.settings-details summary::-webkit-details-marker {
+  display: none;
+}
+.settings-details summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--gold);
+}
+.settings-details[open] summary::after {
+  content: "–";
+}
+.share-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.review-cta {
+  border-color: rgba(216, 181, 100, 0.3);
+}
+.review-cta textarea {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  background: #0a0d0b;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px;
+  font-size: 11px;
+  resize: vertical;
+}
+.review-cta label,
+#thread label {
+  color: var(--muted);
+  font-size: 9px;
+}
+#thread textarea {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  background: #0a0d0b;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.review-cta textarea:focus,
+#thread textarea:focus {
+  outline: none;
+  border-color: var(--gold-dark);
+}
+.table-card td a strong {
+  color: var(--text);
+}
+.table-card td a:hover strong {
+  color: var(--gold-light);
+}
+
+/* Notifications popover (live data) */
+.notifications .notif-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.notifications .notif-item {
+  display: flex;
+  gap: 9px;
+  padding: 11px 8px;
+  border-top: 1px solid var(--line);
+  color: var(--text);
+}
+.notifications .notif-item:hover {
+  background: var(--surface-2);
+}
+.notifications .notif-item > span {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+.notifications .notif-item > span.unread {
+  background: var(--gold);
+}
+.notifications .notif-item small {
+  color: var(--muted-2);
+  margin-top: 3px;
+}
+.notifications .notif-foot {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  text-align: right;
+}
+
+@media (max-width: 800px) {
+  .journal-hero {
+    grid-template-columns: 1fr;
+    padding: 22px;
+  }
+  .trade-head {
+    flex-direction: column;
+  }
+}
+@media (max-width: 560px) {
+  .page-title .actions {
+    flex-wrap: wrap;
+  }
+  .trade-form .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

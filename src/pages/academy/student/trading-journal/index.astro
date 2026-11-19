@@ -1,0 +1,222 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../../components/academy/Icon";
+import { EmptyState, Metric, PageTitle, Progress, SectionHead, Sparkline } from "../../../../components/academy/ui";
+import {
+  CURRENCIES,
+  TRADE_COLUMNS,
+  computeStats,
+  fmtPct,
+  fmtPrice,
+  fmtR,
+  loadSettings,
+  money,
+  normaliseTrade,
+  reviewState,
+  tone,
+  tradeDate,
+} from "../../../../lib/academy/journal";
+
+export const prerender = false;
+
+const { supabase, user } = Astro.locals;
+const RANGES = { "30d": 30, "90d": 90, "1y": 365, all: null } as const;
+type Range = keyof typeof RANGES;
+const range: Range = (Object.keys(RANGES) as Range[]).find((r) => r === Astro.url.searchParams.get("range")) ?? "all";
+const days = RANGES[range];
+
+let query = supabase.from("trades").select(TRADE_COLUMNS).eq("user_id", user!.id).order("entry_at", { ascending: false }).limit(2000);
+if (days) query = query.gte("entry_at", new Date(Date.now() - days * 864e5).toISOString());
+const [tradesRes, settings] = await Promise.all([query, loadSettings(supabase, user!.id)]);
+const trades = (tradesRes.data ?? []).map(normaliseTrade);
+const s = computeStats(trades, settings);
+const cur = settings.currency;
+
+const reviews = trades.filter((t) => reviewState(t) !== "none");
+const awaiting = reviews.filter((t) => reviewState(t) === "requested").length;
+const PAGE = 25;
+const page = Math.max(1, Number(Astro.url.searchParams.get("page")) || 1);
+const shown = trades.slice((page - 1) * PAGE, page * PAGE);
+const pages = Math.ceil(trades.length / PAGE);
+const here = `/academy/student/trading-journal${range === "all" ? "" : `?range=${range}`}`;
+const rangeHref = (r: Range) => `/academy/student/trading-journal${r === "all" ? "" : `?range=${r}`}`;
+const pageHref = (p: number) => `/academy/student/trading-journal?${new URLSearchParams({ ...(range === "all" ? {} : { range }), page: String(p) })}`;
+const rangeLabel = { "30d": "LAST 30 DAYS", "90d": "LAST 90 DAYS", "1y": "LAST 12 MONTHS", all: "ALL TIME" }[range];
+const curveFmt = (v: number) => (s.curveUnit === "R" ? fmtR(v) : money(v, cur, false));
+const best = s.byStrategy.filter((x) => x.trades >= 3).sort((a, b) => b.totalR - a.totalR)[0];
+---
+
+<PortalLayout portal="student" activeSlug="trading-journal" pageLabel="Trading journal">
+  <div class="page-stack">
+    <PageTitle kicker="TRADING JOURNAL" title="Your edge, measured." description="Log every trade, find your patterns, and send the ones that matter to Josh for feedback.">
+      <div slot="action" class="actions">
+        {trades.length > 0 && <a class="btn btn-ghost" href="/api/academy/trades" download><Icon name="download" size={15} /> Export CSV</a>}
+        <a class="btn btn-primary" href="/academy/student/trading-journal/new"><Icon name="plus" size={15} /> Log a trade</a>
+      </div>
+    </PageTitle>
+
+    <nav class="tab-line" aria-label="Time range">
+      {(Object.keys(RANGES) as Range[]).map((r) => (
+        <a class={r === range ? "active" : undefined} href={rangeHref(r)}>{{ "30d": "30 days", "90d": "90 days", "1y": "12 months", all: "All time" }[r]}</a>
+      ))}
+    </nav>
+
+    {
+      trades.length === 0 ? (
+        <div class="card">
+          <EmptyState
+            icon="chart"
+            title={range === "all" ? "Your journal is empty" : "No trades in this period"}
+            text={range === "all" ? "Log your first trade — even a demo trade. After 10–20 trades your win rate, best setups and most expensive mistakes start to show here." : "Try a longer time range."}
+          />
+          {range === "all" && <div style="text-align:center;padding-bottom:28px"><a class="btn btn-primary" href="/academy/student/trading-journal/new"><Icon name="plus" size={15} /> Log your first trade</a></div>}
+        </div>
+      ) : (
+        <>
+          <div class="journal-hero card">
+            <div>
+              <span class="kicker">NET PERFORMANCE · {rangeLabel}</span>
+              <strong class={tone(s.netPnl ?? s.totalR)}>{s.netPnl !== null ? money(s.netPnl, cur) : fmtR(s.totalR)}</strong>
+              <p>
+                {s.returnPct !== null && <span class={tone(s.returnPct)}>{s.returnPct >= 0 ? "↗" : "↘"} {fmtPct(Math.abs(s.returnPct))}</span>}{" "}
+                {s.returnPct !== null
+                  ? `on a ${money(settings.starting_balance, cur, false)} starting balance`
+                  : `${s.closed} closed · ${s.open} open${settings.starting_balance === null && s.netPnl !== null ? " · add a starting balance below to see % return" : ""}`}
+              </p>
+            </div>
+            <div class="equity">{s.curve.length > 1 && <Sparkline data={s.curve} positive={(s.curve.at(-1) ?? 0) >= (s.curve[0] ?? 0)} />}</div>
+          </div>
+
+          <div class="metrics-grid compact">
+            <Metric label="Win rate" value={fmtPct(s.winRate)} icon="award" note={`${s.wins}W · ${s.losses}L`} />
+            <Metric label="Profit factor" value={s.profitFactor === null ? "—" : s.profitFactor.toFixed(2)} icon="trend" note={s.profitFactor === null ? "Needs a loss to compare" : s.profitFactor >= 1 ? "Profitable" : "Below 1.0"} />
+            <Metric label="Avg. R multiple" value={fmtR(s.avgR)} icon="chart" note={s.avgR === null ? "Add stop losses" : `Wins ${fmtR(s.avgWinR)} · Losses ${fmtR(s.avgLossR)}`} />
+            <Metric label="Stop loss used" value={fmtPct(s.stopLossRate, 0)} icon="shield" note={(s.stopLossRate ?? 0) >= 95 ? "Disciplined" : "Aim for 100%"} />
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="card chart-card">
+              <SectionHead kicker="PERFORMANCE CURVE" title={s.curveUnit === "R" ? "Cumulative R" : "Account growth"} />
+              {s.curve.length > 1 ? (
+                <>
+                  <div class="line-chart"><div class="grid-lines" /><Sparkline data={s.curve} positive={(s.curve.at(-1) ?? 0) >= (s.curve[0] ?? 0)} /></div>
+                  <div class="chart-summary">
+                    <span>Start <strong class="mono">{curveFmt(s.curve[0]!)}</strong></span>
+                    <span>Peak <strong class="mono">{curveFmt(Math.max(...s.curve))}</strong></span>
+                    <span>Now <strong class="mono">{curveFmt(s.curve.at(-1)!)}</strong></span>
+                  </div>
+                </>
+              ) : (
+                <div class="chart-empty"><EmptyState icon="chart" title="Close a trade to start your curve" text="Add an exit price or profit/loss to a trade." /></div>
+              )}
+            </section>
+            <section class="card">
+              <SectionHead kicker="STRATEGY EDGE" title="Performance by setup" />
+              {s.byStrategy.length === 0 ? (
+                <EmptyState icon="tool" title="No setups tagged yet" text="Add a strategy name when you log trades to see which setups make you money." />
+              ) : (
+                s.byStrategy.slice(0, 6).map((g) => (
+                  <div class="strategy">
+                    <div>
+                      <strong>{g.name} <small class="hint">· {g.trades} trade{g.trades === 1 ? "" : "s"}</small></strong>
+                      <span class={tone(g.totalR || g.totalPnl)}>{g.totalR ? fmtR(g.totalR) : money(g.totalPnl, cur)}</span>
+                    </div>
+                    <Progress value={g.winRate ?? 0} />
+                    <small>{g.winRate === null ? "No closed result yet" : `${fmtPct(g.winRate, 0)} win rate`}</small>
+                  </div>
+                ))
+              )}
+            </section>
+          </div>
+
+          {(s.topMistakes.length > 0 || best || s.bySession.length > 0) && (
+            <div class="insight-grid">
+              {best && (
+                <div class="card insight">
+                  <span class="kicker">YOUR BEST SETUP</span>
+                  <strong>{best.name}</strong>
+                  <p>{fmtR(best.totalR)} across {best.trades} trades · {fmtPct(best.winRate, 0)} win rate. Consider focusing here.</p>
+                </div>
+              )}
+              {s.topMistakes[0] && (
+                <div class="card insight warn">
+                  <span class="kicker">MOST COMMON MISTAKE</span>
+                  <strong>{s.topMistakes[0].name}</strong>
+                  <p>Tagged on {s.topMistakes[0].count} trade{s.topMistakes[0].count === 1 ? "" : "s"}{s.topMistakes[0].lostR < 0 ? ` — cost you ${fmtR(s.topMistakes[0].lostR)}` : ""}.</p>
+                </div>
+              )}
+              {s.bySession.length > 0 && (
+                <div class="card insight">
+                  <span class="kicker">BY SESSION</span>
+                  <ul class="mini-list">
+                    {s.bySession.map((g) => <li><span>{g.name}</span><span class={`mono ${tone(g.totalR)}`}>{fmtR(g.totalR)}</span><small>{fmtPct(g.winRate, 0)}</small></li>)}
+                  </ul>
+                </div>
+              )}
+              {s.emotions.length > 0 && (
+                <div class="card insight">
+                  <span class="kicker">MINDSET</span>
+                  <ul class="mini-list">
+                    {s.emotions.slice(0, 5).map((g) => <li><span>{g.name}</span><small>{g.trades} trades</small><small>{fmtPct(g.winRate, 0)} win</small></li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <section class="card table-card">
+            <SectionHead kicker="TRADE HISTORY" title={reviews.length ? `Recent executions · ${awaiting} awaiting review` : "Recent executions"} />
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Instrument</th><th>Direction</th><th>Entry</th><th>Exit</th><th>Result</th><th>P&amp;L</th><th>Review</th></tr>
+                </thead>
+                <tbody>
+                  {shown.map((t) => {
+                    const rs = reviewState(t);
+                    return (
+                      <tr class="row-link">
+                        <td>
+                          <a href={`/academy/student/trading-journal/${t.id}`}><strong>{t.instrument}</strong></a>
+                          <small>{tradeDate(t.entry_at)}{t.session ? ` · ${t.session.toUpperCase()}` : ""}{t.strategy ? ` · ${t.strategy}` : ""}</small>
+                        </td>
+                        <td><span class={`direction ${t.direction === "short" ? "short" : ""}`}>{t.direction.toUpperCase()}</span></td>
+                        <td class="mono">{fmtPrice(t.entry_price)}</td>
+                        <td class="mono">{t.exit_price === null && t.pnl === null ? <span class="status muted">Open</span> : fmtPrice(t.exit_price)}</td>
+                        <td class={`mono ${tone(t.r_multiple)}`}>{fmtR(t.r_multiple)}</td>
+                        <td class={`mono ${tone(t.pnl)}`}>{money(t.pnl, t.account_currency)}</td>
+                        <td>{rs === "reviewed" ? <span class="status">Feedback ✓</span> : rs === "requested" ? <span class="status amber">With Josh</span> : <span class="hint">—</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {pages > 1 && (
+              <nav class="pagination" aria-label="Pages">
+                {page > 1 && <a class="btn btn-ghost btn-sm" href={pageHref(page - 1)}>← Newer</a>}
+                <span class="hint">Page {page} of {pages}</span>
+                {page < pages && <a class="btn btn-ghost btn-sm" href={pageHref(page + 1)}>Older →</a>}
+              </nav>
+            )}
+          </section>
+        </>
+      )
+    }
+
+    <section class="card panel">
+      <details class="settings-details">
+        <summary><span class="kicker">JOURNAL SETTINGS</span> Starting balance, currency &amp; your setups</summary>
+        <form method="post" action="/api/academy/trades" style="margin-top:16px">
+          <input type="hidden" name="intent" value="settings" /><input type="hidden" name="_back" value={here} />
+          <div class="form-grid">
+            <label>Starting balance<input name="starting_balance" inputmode="decimal" value={settings.starting_balance ?? ""} placeholder="e.g. 10000" /><span class="hint">Used for your % return and account curve.</span></label>
+            <label>Currency<select name="currency">{CURRENCIES.map((c) => <option selected={settings.currency === c}>{c}</option>)}</select></label>
+            <label class="wide">Your setups<textarea name="strategies" rows="3" placeholder="One per line, e.g.&#10;Liquidity sweep&#10;Break & retest">{settings.strategies.join("\n")}</textarea><span class="hint">Offered as suggestions when you log a trade.</span></label>
+          </div>
+          <div class="form-actions"><button class="btn btn-outline btn-sm" type="submit">Save settings</button></div>
+        </form>
+      </details>
+    </section>
+  </div>
+</PortalLayout>

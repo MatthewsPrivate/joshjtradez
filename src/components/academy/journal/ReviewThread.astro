@@ -1,0 +1,64 @@
+---
+// The conversation under a trade between the student and their reviewer.
+import { SectionHead } from "../ui";
+import type { ReviewComment } from "../../../lib/academy/journal";
+
+interface Props {
+  tradeId: string;
+  comments: ReviewComment[];
+  viewerId: string;
+  back: string;
+  /** Reviewer view gets a larger box and different wording. */
+  asReviewer?: boolean;
+  /** Hide the reply box (e.g. student hasn't asked for a review yet). */
+  canPost?: boolean;
+}
+
+const { tradeId, comments, viewerId, back, asReviewer = false, canPost = true } = Astro.props;
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+---
+
+<section class="card panel" id="thread">
+  <SectionHead kicker="REVIEW" title={asReviewer ? "Your feedback" : "Feedback from Josh"} />
+  {
+    comments.length === 0 ? (
+      <p class="hint" style="margin:0 0 12px">
+        {asReviewer ? "No feedback yet. What did they do well, and what should they change?" : "No feedback yet. Josh will reply here — you'll get a notification."}
+      </p>
+    ) : (
+      <ol class="thread">
+        {comments.map((c) => (
+          <li class={c.is_staff ? "from-staff" : undefined}>
+            <div class="thread-meta">
+              <strong>{c.author_id === viewerId ? "You" : c.author_name}</strong>
+              {c.is_staff && <span class="status amber">Coach</span>}
+              <small>{when(c.created_at)}</small>
+              {c.author_id === viewerId && (
+                <form method="post" action="/api/academy/trade-reviews" class="thread-delete">
+                  <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={c.id} /><input type="hidden" name="_back" value={back} />
+                  <button class="text-btn" type="submit">Delete</button>
+                </form>
+              )}
+            </div>
+            <p>{c.body}</p>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+  {
+    canPost && (
+      <form method="post" action="/api/academy/trade-reviews" class="form-stack">
+        <input type="hidden" name="intent" value="comment" />
+        <input type="hidden" name="trade_id" value={tradeId} />
+        <input type="hidden" name="_back" value={back} />
+        <label>
+          {asReviewer ? "Write feedback" : "Reply"}
+          <textarea name="body" rows={asReviewer ? 6 : 3} required maxlength="10000" placeholder={asReviewer ? "Entry, risk, management, psychology — be specific." : "Ask a follow-up question…"} />
+        </label>
+        <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">{asReviewer ? "Send feedback" : "Send reply"}</button></div>
+      </form>
+    )
+  }
+</section>

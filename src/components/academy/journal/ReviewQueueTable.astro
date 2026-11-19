@@ -1,0 +1,50 @@
+---
+import { fmtR, money, tone, tradeDate, type TradeRow } from "../../../lib/academy/journal";
+
+interface Props {
+  rows: TradeRow[];
+  nameOf: Map<string, string>;
+  /** "requested" shows how long it's been waiting; "reviewed" shows when it was answered. */
+  mode: "requested" | "reviewed";
+}
+
+const { rows, nameOf, mode } = Astro.props;
+const now = Date.now();
+const ago = (iso: string | null) => {
+  if (!iso) return "—";
+  const h = Math.floor((now - new Date(iso).getTime()) / 36e5);
+  return h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+};
+---
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Student</th><th>Trade</th><th>Result</th><th>P&amp;L</th><th>{mode === "requested" ? "Waiting" : "Reviewed"}</th><th></th></tr>
+    </thead>
+    <tbody>
+      {rows.map((t) => {
+        const waitingH = (now - new Date(t.review_requested_at!).getTime()) / 36e5;
+        return (
+          <tr>
+            <td><strong>{nameOf.get(t.user_id) ?? "Student"}</strong><small>{t.screenshots.length ? `${t.screenshots.length} screenshot${t.screenshots.length === 1 ? "" : "s"}` : "No screenshot"}</small></td>
+            <td>
+              <strong>{t.instrument} <span class={`direction ${t.direction === "short" ? "short" : ""}`}>{t.direction.toUpperCase()}</span></strong>
+              <small>{tradeDate(t.entry_at)}{t.strategy ? ` · ${t.strategy}` : ""}</small>
+            </td>
+            <td class={`mono ${tone(t.r_multiple)}`}>{fmtR(t.r_multiple)}</td>
+            <td class={`mono ${tone(t.pnl)}`}>{money(t.pnl, t.account_currency)}</td>
+            <td>
+              {mode === "requested" ? (
+                <span class={`status ${waitingH > 48 ? "amber" : "muted"}`}>{ago(t.review_requested_at)}</span>
+              ) : (
+                <span class="hint">{ago(t.reviewed_at)}</span>
+              )}
+            </td>
+            <td><a class={`btn btn-sm ${mode === "requested" ? "btn-primary" : "btn-ghost"}`} href={`/academy/teacher/trade-reviews/${t.id}`}>{mode === "requested" ? "Review" : "Open"}</a></td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>

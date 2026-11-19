@@ -30,5 +30,15 @@ declare namespace App {
     profile: { full_name: string; display_name: string | null; status: "active" | "suspended"; weekly_lesson_goal?: number } | null;
     /** Student pages only: lessons completed since Monday (started early by middleware). */
     lessonsThisWeek?: Promise<number>;
+    /** Portal pages only: latest notifications for the top bar (started early by middleware). */
+    notifications?: Promise<NotificationItem[]>;
+  }
+  interface NotificationItem {
+    id: number;
+    title: string;
+    body: string;
+    link: string | null;
+    read_at: string | null;
+    created_at: string;
   }
 }

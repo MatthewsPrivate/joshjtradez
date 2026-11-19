@@ -44,6 +44,13 @@ if (portal === "student" && user) {
   weekly = { done: (await Astro.locals.lessonsThisWeek) ?? 0, goal: profile?.weekly_lesson_goal ?? 5 };
 }
 
+const notifications = (await Astro.locals.notifications) ?? [];
+const unread = notifications.filter((n) => !n.read_at).length;
+const ago = (iso: string) => {
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 6e4);
+  return m < 1 ? "just now" : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`;
+};
+
 const paletteItems = [
   ...NAV[portal].map((n) => ({ label: n.label, href: navHref(portal, n.slug, base), group: PORTALS[portal].label })),
   ...portals.filter((p) => p !== portal).map((p) => ({ label: PORTALS[p].label, href: portalBase(p, previewRoot), group: "Switch portal" })),
@@ -126,12 +133,30 @@ const paletteItems = [
             <kbd data-kbd>Ctrl K</kbd>
           </button>
           <div class="popover-wrap">
-            <button class="icon-btn notification" type="button" data-popover-toggle="notifications" aria-expanded="false" aria-controls="notifications" aria-label="Notifications">
+            <button class="icon-btn notification" type="button" data-popover-toggle="notifications" aria-expanded="false" aria-controls="notifications" aria-label={unread ? `Notifications (${unread} unread)` : "Notifications"} data-unread={unread || undefined}>
               <Icon name="bell" />
+              {unread > 0 && <i data-unread-dot />}
             </button>
             <div class="popover notifications" id="notifications" hidden>
-              <div class="section-head"><h3>Notifications</h3></div>
-              <EmptyState icon="bell" title="You're all caught up" text="Class reminders, replies and results will appear here." />
+              <div class="section-head"><h3>Notifications</h3>{unread > 0 && <span>{unread} NEW</span>}</div>
+              {
+                notifications.length === 0 ? (
+                  <EmptyState icon="bell" title="You're all caught up" text="Feedback, replies and reminders will appear here." />
+                ) : (
+                  <div class="notif-list">
+                    {notifications.map((n) => (
+                      <a class="notif-item" href={n.link ?? "#"}>
+                        <span class={n.read_at ? undefined : "unread"} />
+                        <div>
+                          <strong>{n.title}</strong>
+                          {n.body && <small>{n.body.length > 90 ? `${n.body.slice(0, 90)}…` : n.body}</small>}
+                          <small>{ago(n.created_at)}</small>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )
+              }
             </div>
           </div>
           <div class="role-wrap">
@@ -212,6 +237,17 @@ const paletteItems = [
   document.addEventListener("click", (e) => {
     if (!(e.target as Element).closest(".popover")) closePopovers();
   });
+
+  // Opening the bell marks notifications as read (the dot clears straight away).
+  const bell = document.querySelector<HTMLElement>("[data-popover-toggle='notifications'][data-unread]");
+  bell?.addEventListener(
+    "click",
+    () => {
+      bell.querySelector("[data-unread-dot]")?.remove();
+      void fetch("/api/academy/notifications", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "intent=read-all" }).catch(() => {});
+    },
+    { once: true },
+  );
 
   // Mobile sidebar
   const sidebar = document.getElementById("sidebar")!;

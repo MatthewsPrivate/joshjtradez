@@ -1,0 +1,104 @@
+---
+// Reviewer view of one student trade: the trade, their screenshots, a snapshot
+// of how that student is trading overall (from trades they've shared), and the
+// feedback thread.
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import TradeSummary from "../../../../components/academy/journal/TradeSummary.astro";
+import ReviewThread from "../../../../components/academy/journal/ReviewThread.astro";
+import { SectionHead } from "../../../../components/academy/ui";
+import { isUuid } from "../../../../lib/academy/forms";
+import {
+  DEFAULT_SETTINGS,
+  TRADE_COLUMNS,
+  computeStats,
+  fmtPct,
+  fmtR,
+  loadThread,
+  normaliseTrade,
+  reviewState,
+  signScreenshots,
+  tone,
+  tradeDate,
+  tradeDateTime,
+} from "../../../../lib/academy/journal";
+
+export const prerender = false;
+
+const { id = "" } = Astro.params;
+if (!isUuid(id)) return new Response(null, { status: 404 });
+const { supabase, user } = Astro.locals;
+
+// RLS only returns the trade if it's shared and this user may review the student.
+const { data: raw } = await supabase.from("trades").select(TRADE_COLUMNS).eq("id", id).neq("user_id", user!.id).maybeSingle();
+if (!raw) return Astro.redirect("/academy/teacher/trade-reviews?error=not-found");
+const trade = normaliseTrade(raw);
+
+const [comments, shots, otherRes, personRes] = await Promise.all([
+  loadThread(supabase, id),
+  signScreenshots(trade.screenshots),
+  supabase.from("trades").select(TRADE_COLUMNS).eq("user_id", trade.user_id).order("entry_at", { ascending: false }).limit(300),
+  supabase.from("member_directory").select("name").eq("id", trade.user_id).maybeSingle(),
+]);
+const studentName = (personRes.data?.name as string | undefined) ?? "Student";
+const shared = (otherRes.data ?? []).map(normaliseTrade);
+const s = computeStats(shared, DEFAULT_SETTINGS);
+const recent = shared.filter((t) => t.id !== id).slice(0, 6);
+const rs = reviewState(trade);
+const here = `/academy/teacher/trade-reviews/${id}`;
+---
+
+<PortalLayout portal="teacher" activeSlug="trade-reviews" pageLabel={`Review · ${studentName}`}>
+  <div class="page-stack">
+    <header class="page-title">
+      <div>
+        <a class="back-link" href="/academy/teacher/trade-reviews">← Trade reviews</a>
+        <span class="kicker" style="margin-top:12px">
+          {studentName.toUpperCase()} · {rs === "requested" ? <span class="status amber">Awaiting your feedback</span> : rs === "reviewed" ? <span class="status">Reviewed</span> : <span class="status muted">Shared</span>}
+        </span>
+        <h1>{trade.instrument} {trade.direction}</h1>
+        {trade.review_requested_at && <p>Sent for review {tradeDateTime(trade.review_requested_at)}</p>}
+      </div>
+    </header>
+
+    <div class="builder-grid">
+      <div class="stack">
+        <TradeSummary trade={trade} shots={shots} />
+        <ReviewThread tradeId={id} comments={comments} viewerId={user!.id} back={here} asReviewer />
+      </div>
+
+      <div class="stack">
+        <section class="card panel">
+          <SectionHead kicker="STUDENT SNAPSHOT" title={studentName} />
+          <p class="hint" style="margin:0 0 12px">Based on the {shared.length} trade{shared.length === 1 ? "" : "s"} they've shared with you.</p>
+          <dl class="trade-facts">
+            <div><dt>Win rate</dt><dd class="mono">{fmtPct(s.winRate, 0)}</dd></div>
+            <div><dt>Avg R</dt><dd class={`mono ${tone(s.avgR)}`}>{fmtR(s.avgR)}</dd></div>
+            <div><dt>Total R</dt><dd class={`mono ${tone(s.totalR)}`}>{fmtR(s.totalR)}</dd></div>
+            <div><dt>Stop loss used</dt><dd class="mono">{fmtPct(s.stopLossRate, 0)}</dd></div>
+          </dl>
+          {s.topMistakes.length > 0 && (
+            <>
+              <h3 class="mini-head">Repeated mistakes</h3>
+              <ul class="mini-list">{s.topMistakes.map((m) => <li><span>{m.name}</span><small>{m.count}×</small></li>)}</ul>
+            </>
+          )}
+        </section>
+
+        {recent.length > 0 && (
+          <section class="card panel">
+            <SectionHead kicker="CONTEXT" title="Their other shared trades" />
+            <ul class="mini-list">
+              {recent.map((t) => (
+                <li>
+                  <a href={`/academy/teacher/trade-reviews/${t.id}`}>{t.instrument} <span class={`direction ${t.direction === "short" ? "short" : ""}`}>{t.direction.toUpperCase()}</span></a>
+                  <small>{tradeDate(t.entry_at)}</small>
+                  <span class={`mono ${tone(t.r_multiple)}`}>{fmtR(t.r_multiple)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </div>
+  </div>
+</PortalLayout>

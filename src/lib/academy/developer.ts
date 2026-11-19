@@ -56,6 +56,7 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
       probe("20261111020000_platform", () => db.from("notifications").select("id", { head: true })),
       probe("20261111030000_developer_role", () => db.rpc("is_developer")),
       probe("20261111040000_contact_submissions", () => db.from("contact_submissions").select("id", { head: true })),
+      probe("20261119000000_trade_reviews", () => db.from("trade_reviews").select("id", { head: true })),
     ]),
     Promise.all(
       ["profiles", "courses", "lessons", "enrolments", "orders", "community_posts"].map(async (table) => {

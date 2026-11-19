@@ -1,0 +1,30 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import TradeForm from "../../../../components/academy/journal/TradeForm.astro";
+import { loadSettings } from "../../../../lib/academy/journal";
+
+export const prerender = false;
+
+const { supabase, user } = Astro.locals;
+const [settings, used] = await Promise.all([
+  loadSettings(supabase, user!.id),
+  supabase.from("trades").select("strategy").eq("user_id", user!.id).not("strategy", "is", null).order("entry_at", { ascending: false }).limit(200),
+]);
+const known = [...new Set((used.data ?? []).map((r) => r.strategy as string))];
+---
+
+<PortalLayout portal="student" activeSlug="trading-journal" pageLabel="Log a trade">
+  <div class="page-stack narrow">
+    <header class="page-title">
+      <div>
+        <a class="back-link" href="/academy/student/trading-journal">← Trading journal</a>
+        <span class="kicker" style="margin-top:12px">PRIVATE JOURNAL</span>
+        <h1>Log a trade</h1>
+        <p>Only you can see it unless you send it to Josh for review.</p>
+      </div>
+    </header>
+    <section class="card panel">
+      <TradeForm settings={settings} knownStrategies={known} back="/academy/student/trading-journal/new" />
+    </section>
+  </div>
+</PortalLayout>

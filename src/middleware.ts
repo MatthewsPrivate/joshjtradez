@@ -101,6 +101,20 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       ).then((r) => r.count ?? 0);
     }
 
+    // Portal pages show the latest notifications in the top bar.
+    if (/^\/academy\/(student|teacher|admin|owner|developer)(\/|$)/.test(path)) {
+      ctx.locals.notifications = Promise.resolve(
+        supabase
+          .from("notifications")
+          .select("id, title, body, link, read_at, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(8),
+      )
+        .then((r) => (r.data ?? []) as App.NotificationItem[])
+        .catch(() => []);
+    }
+
     const cached = accessCache.get(user.id);
     if (cached && Date.now() - cached.at < ACCESS_TTL_MS) {
       ctx.locals.roles = [...cached.roles];

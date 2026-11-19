@@ -1,0 +1,64 @@
+---
+// Josh's review queue: trades students have sent for feedback, oldest first.
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import ReviewQueueTable from "../../../../components/academy/journal/ReviewQueueTable.astro";
+import { EmptyState, Metric, PageTitle, SectionHead } from "../../../../components/academy/ui";
+import { TRADE_COLUMNS, normaliseTrade, reviewState } from "../../../../lib/academy/journal";
+
+export const prerender = false;
+
+const { supabase, user } = Astro.locals;
+const { data, error } = await supabase
+  .from("trades")
+  .select(TRADE_COLUMNS)
+  .not("review_requested_at", "is", null)
+  .neq("user_id", user!.id)
+  .order("review_requested_at", { ascending: true })
+  .limit(500);
+if (error) console.error("[trade-reviews] load failed:", error.message);
+const all = (data ?? []).map(normaliseTrade);
+const waiting = all.filter((t) => reviewState(t) === "requested");
+const reviewed = all.filter((t) => reviewState(t) === "reviewed").sort((a, b) => (b.reviewed_at ?? "").localeCompare(a.reviewed_at ?? ""));
+
+const ids = [...new Set(all.map((t) => t.user_id))];
+const { data: people } = ids.length ? await supabase.from("member_directory").select("id, name").in("id", ids) : { data: [] };
+const nameOf = new Map((people ?? []).map((p) => [p.id as string, p.name as string]));
+
+const now = Date.now();
+const oldestHours = waiting[0] ? Math.floor((now - new Date(waiting[0].review_requested_at!).getTime()) / 36e5) : null;
+const weekAgo = new Date(now - 7 * 864e5).toISOString();
+const reviewedThisWeek = reviewed.filter((t) => (t.reviewed_at ?? "") >= weekAgo).length;
+---
+
+<PortalLayout portal="teacher" activeSlug="trade-reviews" pageLabel="Trade reviews">
+  <div class="page-stack">
+    <PageTitle kicker="COACHING" title="Trade reviews" description="Trades your students have sent for feedback, oldest first. A quick reply keeps them journalling." />
+
+    <div class="metrics-grid compact">
+      <Metric label="Awaiting review" value={String(waiting.length)} icon="clock" note={waiting.length ? "Needs a reply" : "All clear"} />
+      <Metric label="Oldest waiting" value={oldestHours === null ? "—" : oldestHours < 24 ? `${oldestHours}h` : `${Math.floor(oldestHours / 24)}d`} icon="trend" note={oldestHours !== null && oldestHours > 48 ? "Over 2 days" : null} />
+      <Metric label="Reviewed this week" value={String(reviewedThisWeek)} icon="check" />
+      <Metric label="Students waiting" value={String(new Set(waiting.map((t) => t.user_id)).size)} icon="users" />
+    </div>
+
+    <section class="card table-card">
+      <SectionHead kicker="QUEUE" title="Waiting for your feedback" />
+      {
+        waiting.length === 0 ? (
+          <EmptyState icon="check" title="No trades waiting" text="When a student presses “Send to Josh” on a trade, it lands here and you get a notification." />
+        ) : (
+          <ReviewQueueTable rows={waiting} nameOf={nameOf} mode="requested" />
+        )
+      }
+    </section>
+
+    {
+      reviewed.length > 0 && (
+        <section class="card table-card">
+          <SectionHead kicker="DONE" title="Recently reviewed" />
+          <ReviewQueueTable rows={reviewed.slice(0, 25)} nameOf={nameOf} mode="reviewed" />
+        </section>
+      )
+    }
+  </div>
+</PortalLayout>

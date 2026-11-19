@@ -34,6 +34,7 @@ export const NAV: Record<Role, NavItem[]> = {
     item("Overview", "grid"),
     item("My courses", "book"),
     item("My classes", "calendar"),
+    item("Trade reviews", "chart"),
     item("Students", "users"),
     item("Course builder", "tool"),
     item("Assignments", "note"),

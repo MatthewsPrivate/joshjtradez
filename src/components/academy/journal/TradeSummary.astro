@@ -1,0 +1,67 @@
+---
+// Read-only trade card: key numbers, context, notes and screenshots.
+// Shared by the student's trade page and the reviewer's page.
+import { fmtPct, fmtPrice, fmtR, isClosed, money, tone, tradeDateTime, type TradeRow } from "../../../lib/academy/journal";
+
+interface Props {
+  trade: TradeRow;
+  shots: { path: string; url: string }[];
+  /** Student view: show a remove button under each screenshot. */
+  removeBack?: string;
+}
+
+const { trade: t, shots, removeBack } = Astro.props;
+const facts: [string, string, string?][] = [
+  ["Entry", fmtPrice(t.entry_price)],
+  ["Stop loss", fmtPrice(t.stop_loss)],
+  ["Take profit", fmtPrice(t.take_profit)],
+  ["Exit", isClosed(t) ? fmtPrice(t.exit_price) : "Open"],
+  ["Planned R:R", t.planned_rr === null ? "—" : `1 : ${t.planned_rr.toFixed(2)}`],
+  ["Result", fmtR(t.r_multiple), tone(t.r_multiple)],
+  ["P&L", money(t.pnl, t.account_currency), tone(t.pnl)],
+  ["Risk", t.risk_pct === null ? "—" : fmtPct(t.risk_pct, 2)],
+  ["Size", t.position_size === null ? "—" : `${t.position_size} ${t.size_unit}`],
+];
+const tags = [t.market, t.strategy, t.session, t.emotional_state].filter(Boolean) as string[];
+---
+
+<section class="card panel trade-summary">
+  <div class="trade-head">
+    <div>
+      <span class="kicker">{tradeDateTime(t.entry_at)}{t.exit_at ? ` → ${tradeDateTime(t.exit_at)}` : ""}</span>
+      <h2>{t.instrument} <span class={`direction ${t.direction === "short" ? "short" : ""}`}>{t.direction.toUpperCase()}</span></h2>
+    </div>
+    <strong class={`trade-result mono ${tone(t.pnl ?? t.r_multiple)}`}>{t.pnl !== null ? money(t.pnl, t.account_currency) : fmtR(t.r_multiple)}</strong>
+  </div>
+
+  <dl class="trade-facts">
+    {facts.map(([k, val, cls]) => (
+      <div><dt>{k}</dt><dd class={`mono ${cls ?? ""}`}>{val}</dd></div>
+    ))}
+  </dl>
+
+  {tags.length > 0 && <div class="tags">{tags.map((x) => <span>{x}</span>)}</div>}
+  {t.mistakes.length > 0 && (
+    <div class="tags mistakes" aria-label="Mistakes">{t.mistakes.map((m) => <span>⚠ {m}</span>)}</div>
+  )}
+
+  {t.notes && (<div class="trade-notes"><h3>Notes</h3><p>{t.notes}</p></div>)}
+  {t.lessons_learned && (<div class="trade-notes"><h3>Lesson learned</h3><p>{t.lessons_learned}</p></div>)}
+
+  {shots.length > 0 && (
+    <div class="trade-shots">
+      {shots.map((s, i) => (
+        <figure>
+          <a href={s.url} target="_blank" rel="noopener noreferrer"><img src={s.url} alt={`Chart screenshot ${i + 1}`} loading="lazy" /></a>
+          {removeBack && (
+            <form method="post" action="/api/academy/trades">
+              <input type="hidden" name="intent" value="remove-screenshot" /><input type="hidden" name="id" value={t.id} />
+              <input type="hidden" name="path" value={s.path} /><input type="hidden" name="_back" value={removeBack} />
+              <button class="text-btn" type="submit">Remove</button>
+            </form>
+          )}
+        </figure>
+      ))}
+    </div>
+  )}
+</section>

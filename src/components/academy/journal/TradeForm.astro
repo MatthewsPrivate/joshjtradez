@@ -1,0 +1,96 @@
+---
+// Log / edit a trade. Only instrument, direction and entry are required — the
+// rest is optional so a student can log quickly and fill in details later.
+import { CURRENCIES, EMOTIONS, MARKETS, MISTAKES, SESSIONS, isoToLondonLocal, type JournalSettings, type TradeRow } from "../../../lib/academy/journal";
+
+interface Props {
+  trade?: TradeRow;
+  settings: JournalSettings;
+  /** Strategy names the student has used before (offered as suggestions). */
+  knownStrategies?: string[];
+  back: string;
+}
+
+const { trade, settings, knownStrategies = [], back } = Astro.props;
+const v = (x: unknown) => (x === null || x === undefined ? "" : String(x));
+const strategies = [...new Set([...settings.strategies, ...knownStrategies])];
+const mistakes = [...new Set([...MISTAKES, ...(trade?.mistakes ?? [])])];
+const currency = trade?.account_currency ?? settings.currency;
+---
+
+<form method="post" action="/api/academy/trades" class="trade-form">
+  <input type="hidden" name="intent" value={trade ? "update" : "create"} />
+  {trade && <input type="hidden" name="id" value={trade.id} />}
+  <input type="hidden" name="_back" value={back} />
+
+  <fieldset>
+    <legend>The trade</legend>
+    <div class="form-grid">
+      <label>Instrument<input name="instrument" value={v(trade?.instrument)} required maxlength="40" placeholder="e.g. EURUSD, XAUUSD, NAS100" autocomplete="off" list="instrument-list" /></label>
+      <datalist id="instrument-list">
+        {["EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "XAUUSD", "NAS100", "US30", "SPX500", "BTCUSD"].map((i) => <option value={i} />)}
+      </datalist>
+      <label>Direction
+        <select name="direction" required>
+          <option value="long" selected={trade?.direction !== "short"}>Long / Buy</option>
+          <option value="short" selected={trade?.direction === "short"}>Short / Sell</option>
+        </select>
+      </label>
+      <label>Market
+        <select name="market">{MARKETS.map((m) => <option value={m} selected={(trade?.market ?? "forex") === m}>{m[0]!.toUpperCase() + m.slice(1)}</option>)}</select>
+      </label>
+      <label>Entry time (UK)<input type="datetime-local" name="entry_at" value={isoToLondonLocal(trade?.entry_at ?? new Date().toISOString())} /></label>
+      <label>Entry price<input name="entry_price" inputmode="decimal" value={v(trade?.entry_price)} required placeholder="1.07124" /></label>
+      <label>Stop loss<input name="stop_loss" inputmode="decimal" value={v(trade?.stop_loss)} placeholder="Needed for R multiple" /></label>
+      <label>Take profit<input name="take_profit" inputmode="decimal" value={v(trade?.take_profit)} placeholder="Optional" /></label>
+      <label>Position size
+        <span class="input-pair">
+          <input name="position_size" inputmode="decimal" value={v(trade?.position_size)} placeholder="1.00" />
+          <select name="size_unit" aria-label="Size unit">{["lots", "contracts", "units", "shares"].map((u) => <option selected={(trade?.size_unit ?? "lots") === u}>{u}</option>)}</select>
+        </span>
+      </label>
+      <label>Risk (% of account)<input name="risk_pct" inputmode="decimal" value={v(trade?.risk_pct)} placeholder="1" /></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Result <span class="hint">— leave blank while the trade is still open</span></legend>
+    <div class="form-grid">
+      <label>Exit time (UK)<input type="datetime-local" name="exit_at" value={isoToLondonLocal(trade?.exit_at ?? null)} /></label>
+      <label>Exit price<input name="exit_price" inputmode="decimal" value={v(trade?.exit_price)} placeholder="1.07582" /></label>
+      <label>Profit / loss
+        <span class="input-pair">
+          <input name="pnl" inputmode="decimal" value={v(trade?.pnl)} placeholder="e.g. 624.80 or -240" />
+          <select name="account_currency" aria-label="Currency">{CURRENCIES.map((c) => <option selected={currency === c}>{c}</option>)}</select>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Context</legend>
+    <div class="form-grid">
+      <label>Strategy / setup<input name="strategy" value={v(trade?.strategy)} maxlength="80" list="strategy-list" placeholder="e.g. Liquidity sweep" autocomplete="off" /></label>
+      <datalist id="strategy-list">{strategies.map((s) => <option value={s} />)}</datalist>
+      <label>Session
+        <select name="session"><option value="">—</option>{SESSIONS.map((s) => <option selected={trade?.session === s}>{s}</option>)}</select>
+      </label>
+      <label>How did you feel?
+        <select name="emotional_state"><option value="">—</option>{EMOTIONS.map((e) => <option selected={trade?.emotional_state === e}>{e}</option>)}</select>
+      </label>
+      <div class="wide">
+        <span class="field-label">Mistakes (tick any that apply)</span>
+        <div class="chip-checks">
+          {mistakes.map((m) => <label class="chip-check"><input type="checkbox" name="mistakes" value={m} checked={trade?.mistakes.includes(m)} /><span>{m}</span></label>)}
+        </div>
+      </div>
+      <label class="wide">Notes<textarea name="notes" rows="5" maxlength="20000" placeholder="Why did you take it? What did you see on the higher timeframe? How did you manage it?">{trade?.notes ?? ""}</textarea></label>
+      <label class="wide">Lesson learned<textarea name="lessons_learned" rows="3" maxlength="10000" placeholder="One thing you'll repeat or avoid next time.">{trade?.lessons_learned ?? ""}</textarea></label>
+    </div>
+  </fieldset>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{trade ? "Save changes" : "Save trade"}</button>
+    {!trade && <span class="hint">You can add chart screenshots and send it to Josh on the next screen.</span>}
+  </div>
+</form>

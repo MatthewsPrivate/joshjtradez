@@ -3,23 +3,28 @@
 // submits its form with the stored path so the server can record it.
 //   action/intent/fields  -> the form posted after a successful upload
 //   bucket/courseId/lessonId -> where the file goes (path chosen server-side)
+//   bucket "user-files" + tradeId -> a trade screenshot in the student's own folder
+//   pasteable -> also accept an image pasted anywhere on the page (Ctrl/Cmd+V)
 interface Props {
   action: string;
   intent: string;
   fields?: Record<string, string>;
   back: string;
-  bucket: "course-covers" | "course-media";
-  courseId: string;
+  bucket: "course-covers" | "course-media" | "user-files";
+  courseId?: string;
   lessonId?: string;
+  tradeId?: string;
+  maxBytes?: number;
+  pasteable?: boolean;
   accept: string;
   label: string;
   hint?: string;
 }
 
-const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, label, hint } = Astro.props;
+const { action, intent, fields = {}, back, bucket, courseId, lessonId, tradeId, maxBytes, pasteable = false, accept, label, hint } = Astro.props;
 ---
 
-<form method="post" action={action} data-upload-form data-bucket={bucket} data-course={courseId} data-lesson={lessonId}>
+<form method="post" action={action} data-upload-form data-bucket={bucket} data-course={courseId} data-lesson={lessonId} data-trade={tradeId} data-max-bytes={maxBytes} data-paste={pasteable ? "" : undefined}>
   <input type="hidden" name="intent" value={intent} />
   <input type="hidden" name="_back" value={back} />
   {Object.entries(fields).map(([k, v]) => <input type="hidden" name={k} value={v} />)}
@@ -38,7 +43,7 @@ const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, l
   const MESSAGES: Record<string, string> = {
     "unsupported-type": "That file type isn't supported here.",
     "not-allowed": "You don't have permission to upload to this course.",
-    "not-found": "This lesson no longer exists.",
+    "not-found": "That item no longer exists.",
     invalid: "Something was wrong with the upload request.",
   };
 
@@ -79,9 +84,16 @@ const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, l
       status.classList.toggle("error", error);
     };
 
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
+    let busy = false;
+    async function handle(file: File) {
+      if (busy) return;
+      const max = Number(form.dataset.maxBytes || 0);
+      if (max && file.size > max) {
+        say(`That image is ${(file.size / 1e6).toFixed(1)} MB — the limit is ${Math.round(max / 1e6)} MB.`, true);
+        input.value = "";
+        return;
+      }
+      busy = true;
       input.disabled = true;
       say(`Preparing ${file.name}…`);
       try {
@@ -92,6 +104,7 @@ const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, l
             bucket: form.dataset.bucket,
             courseId: form.dataset.course,
             lessonId: form.dataset.lesson || undefined,
+            tradeId: form.dataset.trade || undefined,
             filename: file.name,
             contentType: file.type,
           }),
@@ -118,7 +131,26 @@ const { action, intent, fields = {}, back, bucket, courseId, lessonId, accept, l
         bar.hidden = true;
         input.disabled = false;
         input.value = "";
+        busy = false;
       }
+    }
+
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (file) void handle(file);
     });
+
+    if (form.dataset.paste !== undefined) {
+      window.addEventListener("paste", (e) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("input, textarea, [contenteditable]")) return;
+        const item = [...(e.clipboardData?.items ?? [])].find((i) => i.kind === "file" && i.type.startsWith("image/"));
+        const blob = item?.getAsFile();
+        if (!blob) return;
+        e.preventDefault();
+        const ext = blob.type.split("/")[1] || "png";
+        void handle(new File([blob], `pasted-chart.${ext}`, { type: blob.type }));
+      });
+    }
   });
 </script>

@@ -1,0 +1,145 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import TradeForm from "../../../../components/academy/journal/TradeForm.astro";
+import TradeSummary from "../../../../components/academy/journal/TradeSummary.astro";
+import ReviewThread from "../../../../components/academy/journal/ReviewThread.astro";
+import UploadField from "../../../../components/academy/UploadField.astro";
+import { Icon } from "../../../../components/academy/Icon";
+import { SectionHead } from "../../../../components/academy/ui";
+import { isUuid } from "../../../../lib/academy/forms";
+import {
+  MAX_SCREENSHOTS,
+  MAX_SCREENSHOT_BYTES,
+  TRADE_COLUMNS,
+  loadSettings,
+  loadThread,
+  normaliseTrade,
+  reviewState,
+  signScreenshots,
+  tradeDateTime,
+} from "../../../../lib/academy/journal";
+
+export const prerender = false;
+
+const { id = "" } = Astro.params;
+if (!isUuid(id)) return new Response(null, { status: 404 });
+const { supabase, user } = Astro.locals;
+
+const [tradeRes, settings, comments] = await Promise.all([
+  supabase.from("trades").select(TRADE_COLUMNS).eq("id", id).eq("user_id", user!.id).maybeSingle(),
+  loadSettings(supabase, user!.id),
+  loadThread(supabase, id),
+]);
+if (!tradeRes.data) return Astro.redirect("/academy/student/trading-journal?error=not-found");
+const trade = normaliseTrade(tradeRes.data);
+const shots = await signScreenshots(trade.screenshots);
+const here = `/academy/student/trading-journal/${id}`;
+const rs = reviewState(trade);
+const editing = Astro.url.searchParams.get("edit") === "1";
+---
+
+<PortalLayout portal="student" activeSlug="trading-journal" pageLabel={`${trade.instrument} trade`}>
+  <div class="page-stack">
+    <header class="page-title">
+      <div>
+        <a class="back-link" href="/academy/student/trading-journal">← Trading journal</a>
+        <span class="kicker" style="margin-top:12px">
+          TRADE · {rs === "reviewed" ? <span class="status">Feedback received</span> : rs === "requested" ? <span class="status amber">With Josh for review</span> : trade.shared_with_teacher ? <span class="status muted">Shared</span> : <span class="status muted">Private</span>}
+        </span>
+        <h1>{trade.instrument} {trade.direction === "long" ? "long" : "short"}</h1>
+      </div>
+      <div class="actions">
+        {editing ? <a class="btn btn-ghost btn-sm" href={here}>Cancel editing</a> : <a class="btn btn-outline btn-sm" href={`${here}?edit=1`}>Edit trade</a>}
+      </div>
+    </header>
+
+    {
+      editing ? (
+        <section class="card panel">
+          <TradeForm trade={trade} settings={settings} back={here} />
+        </section>
+      ) : (
+        <div class="builder-grid">
+          <div class="stack">
+            <TradeSummary trade={trade} shots={shots} removeBack={here} />
+            {(rs !== "none" || comments.length > 0) && <ReviewThread tradeId={id} comments={comments} viewerId={user!.id} back={here} />}
+          </div>
+
+          <div class="stack">
+            <section class="card panel review-cta">
+              <SectionHead kicker="COACHING" title={rs === "none" ? "Send to Josh for review" : rs === "requested" ? "Waiting for Josh" : "Josh has replied"} />
+              {rs === "none" && (
+                <form method="post" action="/api/academy/trades" class="form-stack">
+                  <input type="hidden" name="intent" value="request-review" /><input type="hidden" name="id" value={id} /><input type="hidden" name="_back" value={here} />
+                  <p class="hint" style="margin:0">Josh will see this trade, your notes and screenshots, and reply with feedback. Add a chart screenshot first for the best review.</p>
+                  <label>What do you want feedback on? <span class="hint">(optional)</span>
+                    <textarea name="message" rows="3" maxlength="4000" placeholder="e.g. Was my entry too early? Should I have held for TP2?" />
+                  </label>
+                  <button class="btn btn-primary" type="submit"><Icon name="message" size={15} /> Send to Josh</button>
+                </form>
+              )}
+              {rs === "requested" && (
+                <>
+                  <p class="hint" style="margin:0 0 12px">Sent {tradeDateTime(trade.review_requested_at!)}. You'll get a notification when Josh replies.</p>
+                  <form method="post" action="/api/academy/trades">
+                    <input type="hidden" name="intent" value="cancel-review" /><input type="hidden" name="id" value={id} /><input type="hidden" name="_back" value={here} />
+                    <button class="btn btn-ghost btn-sm" type="submit">Withdraw request</button>
+                  </form>
+                </>
+              )}
+              {rs === "reviewed" && (
+                <p class="hint" style="margin:0">Read Josh's feedback <a href="#thread">below the trade</a>. Reply there if you have a follow-up question.</p>
+              )}
+            </section>
+
+            <section class="card panel">
+              <SectionHead kicker="CHARTS" title={`Screenshots (${trade.screenshots.length}/${MAX_SCREENSHOTS})`} />
+              {trade.screenshots.length < MAX_SCREENSHOTS ? (
+                <UploadField
+                  action="/api/academy/trades"
+                  intent="add-screenshot"
+                  fields={{ id }}
+                  back={here}
+                  bucket="user-files"
+                  tradeId={id}
+                  maxBytes={MAX_SCREENSHOT_BYTES}
+                  pasteable
+                  accept="image/png,image/jpeg,image/webp"
+                  label="Upload screenshot"
+                  hint="PNG or JPG up to 4 MB — or copy a chart in TradingView and press Ctrl+V on this page."
+                />
+              ) : (
+                <p class="hint" style="margin:0">Maximum reached — remove one to add another.</p>
+              )}
+            </section>
+
+            {rs === "none" && (
+              <section class="card panel">
+                <form method="post" action="/api/academy/trades" class="share-toggle">
+                  <input type="hidden" name="intent" value="share" /><input type="hidden" name="id" value={id} /><input type="hidden" name="_back" value={here} />
+                  <input type="hidden" name="value" value={trade.shared_with_teacher ? "off" : "on"} />
+                  <div>
+                    <strong>{trade.shared_with_teacher ? "Shared with your coaches" : "Private"}</strong>
+                    <p class="hint" style="margin:4px 0 0">{trade.shared_with_teacher ? "Josh can see this trade but hasn't been asked to review it." : "Only you can see this trade."}</p>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" type="submit">{trade.shared_with_teacher ? "Make private" : "Share"}</button>
+                </form>
+              </section>
+            )}
+
+            <section class="card panel">
+              <details class="danger-zone">
+                <summary>Delete trade</summary>
+                <form method="post" action="/api/academy/trades">
+                  <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={id} /><input type="hidden" name="_back" value={here} />
+                  <p class="hint">Permanently deletes this trade, its screenshots and any feedback on it.</p>
+                  <button class="btn btn-danger btn-sm" type="submit" style="margin-top:8px">Delete permanently</button>
+                </form>
+              </details>
+            </section>
+          </div>
+        </div>
+      )
+    }
+  </div>
+</PortalLayout>
