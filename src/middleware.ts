@@ -23,6 +23,8 @@ const isAcademyPath = (p: string) =>
 // or suspension takes effect for navigation within 30 seconds.
 const ACCESS_TTL_MS = 30_000;
 type CachedProfile = NonNullable<App.Locals["profile"]>;
+const lastSeenWrites = new Map<string, number>();
+const LAST_SEEN_EVERY_MS = 10 * 60 * 1000;
 const accessCache = new Map<string, { roles: Role[]; permissions: StaffPermission[]; profile: CachedProfile; at: number }>();
 
 // Server-to-server callers (payment provider webhooks) authenticate by signature, not origin.
@@ -75,6 +77,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   ctx.locals.roles = [];
   ctx.locals.permissions = [];
   ctx.locals.profile = null;
+  let touchLastSeen: Promise<void> | undefined;
 
   // getClaims() verifies the session JWT's signature locally (cached JWKS), so
   // authenticating costs no round trip to Supabase Auth on each request.
@@ -113,6 +116,19 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       )
         .then((r) => (r.data ?? []) as App.NotificationItem[])
         .catch(() => []);
+    }
+
+    // Record "last active" for the student roster, at most every 10 minutes per user.
+    if (/^\/academy\/(student|teacher|admin|owner|developer)(\/|$)/.test(path)) {
+      const last = lastSeenWrites.get(user.id) ?? 0;
+      if (Date.now() - last > LAST_SEEN_EVERY_MS) {
+        if (lastSeenWrites.size > 5000) lastSeenWrites.clear();
+        lastSeenWrites.set(user.id, Date.now());
+        touchLastSeen = Promise.resolve(supabase.rpc("touch_last_seen")).then(
+          () => undefined,
+          () => undefined,
+        );
+      }
     }
 
     const cached = accessCache.get(user.id);
@@ -182,6 +198,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
   const pageStart = performance.now();
   const response = await next();
+  // Ran alongside the page render; make sure it lands before the function exits.
+  await touchLastSeen;
   // Per-user pages: never cached by shared caches, always revalidated by the
   // browser. (Not no-store, so the back/forward cache can restore pages instantly.)
   response.headers.set("cache-control", "private, no-cache");

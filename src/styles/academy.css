@@ -3386,3 +3386,68 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Student roster / at-risk flags */
+.time-dot.danger {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(225, 120, 110, 0.1);
+}
+.status.danger {
+  color: var(--red);
+  background: rgba(225, 120, 110, 0.08);
+  border-color: rgba(225, 120, 110, 0.25);
+}
+.roster td {
+  vertical-align: top;
+}
+.roster-progress {
+  min-width: 180px;
+}
+.roster-progress small {
+  margin-top: 6px;
+}
+.flag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.flag {
+  font-size: 10px;
+  padding-left: 12px;
+  position: relative;
+}
+.flag::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.flag.high {
+  color: var(--red);
+}
+.flag.high::before {
+  background: var(--red);
+}
+.flag.medium {
+  color: var(--gold-light);
+}
+.flag.action {
+  color: var(--text);
+}
+.flag.action::before {
+  background: var(--green);
+}
+.roster .row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.roster .row-actions .btn + .btn {
+  margin-left: 6px;
+}

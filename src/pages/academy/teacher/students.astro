@@ -1,0 +1,143 @@
+---
+// Student roster with "needs attention" flags (see lib/academy/students.ts).
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { Icon } from "../../../components/academy/Icon";
+import { EmptyState, Metric, PageTitle, Progress } from "../../../components/academy/ui";
+import { lastActiveLabel, loadStudentRoster, needsAttention, type StudentRisk } from "../../../lib/academy/students";
+
+export const prerender = false;
+
+const { supabase, user, roles, permissions, profile } = Astro.locals;
+let roster: StudentRisk[] = [];
+let failed = false;
+try {
+  roster = await loadStudentRoster(supabase, { id: user!.id, roles, permissions });
+} catch (err) {
+  console.error("[students] roster failed:", err);
+  failed = true;
+}
+
+const TABS = {
+  attention: { label: "Needs attention", test: needsAttention },
+  all: { label: "All enrolled", test: (s: StudentRisk) => s.level !== "lead" },
+  "not-started": { label: "Not started", test: (s: StudentRisk) => s.level !== "lead" && s.completed === 0 },
+  completed: { label: "Completed", test: (s: StudentRisk) => s.level === "completed" },
+  leads: { label: "Signed up, not enrolled", test: (s: StudentRisk) => s.level === "lead" },
+} as const;
+type Tab = keyof typeof TABS;
+const tab: Tab = (Object.keys(TABS) as Tab[]).find((t) => t === Astro.url.searchParams.get("tab")) ?? "attention";
+const counts = Object.fromEntries((Object.keys(TABS) as Tab[]).map((t) => [t, roster.filter(TABS[t].test).length])) as Record<Tab, number>;
+const shown = roster.filter(TABS[tab].test);
+
+const enrolled = roster.filter((s) => s.level !== "lead");
+const activeWeek = enrolled.filter((s) => s.daysInactive !== null && s.daysInactive < 7).length;
+const withLessons = enrolled.filter((s) => s.pct !== null);
+const avgPct = withLessons.length ? withLessons.reduce((a, s) => a + s.pct!, 0) / withLessons.length : null;
+const high = enrolled.filter((s) => s.level === "high").length;
+
+const coach = (profile?.display_name || profile?.full_name || "Josh").split(" ")[0];
+const mailto = (s: StudentRisk) => {
+  const first = s.name.split(" ")[0];
+  const subject = "Checking in on your trading journey";
+  const body = `Hi ${first},\n\nI noticed it's been a little while since you were last in the academy — how are you getting on?\n\nIf anything's holding you back, just reply to this email.\n\n${coach}`;
+  return `mailto:${s.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};
+const levelLabel: Record<StudentRisk["level"], [string, string]> = {
+  high: ["At risk", "danger"],
+  medium: ["Watch", "amber"],
+  ok: ["On track", ""],
+  completed: ["Completed", ""],
+  lead: ["Not enrolled", "muted"],
+};
+---
+
+<PortalLayout portal="teacher" activeSlug="students" pageLabel="Students">
+  <div class="page-stack">
+    <PageTitle kicker="STUDENTS" title="Who needs you today" description="Students who've gone quiet, haven't started, are stuck, or are waiting on your feedback — so nobody slips through the cracks." />
+
+    {
+      failed ? (
+        <div class="card"><EmptyState icon="shield" title="We couldn't load your students" text="Please refresh. If it keeps happening, check the developer diagnostics." /></div>
+      ) : (
+        <>
+          <div class="metrics-grid compact">
+            <Metric label="Enrolled students" value={String(enrolled.length)} icon="users" note={counts.leads ? `+${counts.leads} not enrolled` : null} />
+            <Metric label="Need attention" value={String(counts.attention)} icon="shield" note={high ? `${high} at high risk` : counts.attention ? null : "Everyone's on track"} />
+            <Metric label="Active this week" value={String(activeWeek)} icon="trend" note={enrolled.length ? `${Math.round((activeWeek / enrolled.length) * 100)}% of students` : null} />
+            <Metric label="Avg. completion" value={avgPct === null ? "—" : `${Math.round(avgPct)}%`} icon="award" />
+          </div>
+
+          <nav class="tab-line" aria-label="Student filters">
+            {(Object.keys(TABS) as Tab[])
+              .filter((t) => t !== "leads" || counts.leads > 0)
+              .map((t) => (
+                <a class={t === tab ? "active" : undefined} href={t === "attention" ? "/academy/teacher/students" : `?tab=${t}`}>
+                  {TABS[t].label} <span>{counts[t]}</span>
+                </a>
+              ))}
+          </nav>
+
+          {shown.length === 0 ? (
+            <div class="card">
+              <EmptyState
+                icon={tab === "attention" ? "check" : "users"}
+                title={tab === "attention" ? (enrolled.length ? "Nobody needs chasing right now" : "No enrolled students yet") : "No students here"}
+                text={tab === "attention" ? (enrolled.length ? "Students who go quiet for a week, don't start, get stuck, or wait on a review will appear here." : "Once students are enrolled in your courses, anyone drifting away will show up here.") : undefined}
+              />
+            </div>
+          ) : (
+            <section class="card table-card">
+              <div class="table-wrap">
+                <table class="roster">
+                  <thead>
+                    <tr><th>Student</th><th>Status</th><th>Progress</th><th>Last active</th><th>Signals</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((s) => (
+                      <tr>
+                        <td>
+                          <strong>{s.name}</strong>
+                          <small>{s.email ?? ""}</small>
+                        </td>
+                        <td><span class={`status ${levelLabel[s.level][1]}`}>{levelLabel[s.level][0]}</span></td>
+                        <td class="roster-progress">
+                          {s.courses.length === 0 ? (
+                            <span class="hint">No course access</span>
+                          ) : (
+                            <>
+                              <Progress value={s.pct ?? 0} />
+                              <small>{s.pct === null ? "No lessons published" : `${Math.round(s.pct)}% · ${s.completed}/${s.total} lessons`}{s.courses.length > 1 ? ` · ${s.courses.length} courses` : ` · ${s.courses[0]!.title}`}</small>
+                              {s.stuckLesson && s.level !== "completed" && <small>Last opened: {s.stuckLesson}</small>}
+                            </>
+                          )}
+                        </td>
+                        <td class="mono">{lastActiveLabel(s)}</td>
+                        <td>
+                          {s.flags.length === 0 ? (
+                            <span class="hint">{s.lessonsLast14 ? `${s.lessonsLast14} lessons in 2 weeks` : "—"}</span>
+                          ) : (
+                            <ul class="flag-list">{s.flags.map((f) => <li class={`flag ${f.level}`}>{f.text}</li>)}</ul>
+                          )}
+                        </td>
+                        <td class="row-actions">
+                          {s.reviewsWaiting > 0 && <a class="btn btn-primary btn-sm" href="/academy/teacher/trade-reviews">Review</a>}
+                          {s.email && s.level !== "ok" && s.level !== "completed" && (
+                            <a class="btn btn-ghost btn-sm" href={mailto(s)} title={`Email ${s.name}`}><Icon name="message" size={13} /> Check in</a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          <p class="hint">
+            How students are flagged: <strong>At risk</strong> — inactive 14+ days, or enrolled 10+ days without starting. <strong>Watch</strong> — inactive 7+ days, not started after 3 days, no lessons in 2 weeks, a losing streak on trades they've shared, or a trade review waiting 2+ days. Private journal trades are never used.
+          </p>
+        </>
+      )
+    }
+  </div>
+</PortalLayout>

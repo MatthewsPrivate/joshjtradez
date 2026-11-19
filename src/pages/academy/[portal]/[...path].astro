@@ -19,6 +19,7 @@ import {
 import { DeveloperOverviewPage } from "../../../components/academy/DeveloperOverview";
 import { loadDiagnostics } from "../../../lib/academy/developer";
 import { findNavItem } from "../../../lib/academy/nav";
+import { loadAttention, type Attention } from "../../../lib/academy/students";
 import { isRole } from "../../../lib/academy/roles";
 
 export const prerender = false;
@@ -38,12 +39,21 @@ let teacher: Awaited<ReturnType<typeof loadTeacherOverview>> | null = null;
 let owner: Awaited<ReturnType<typeof loadOwnerOverview>> | null = null;
 let admin: Awaited<ReturnType<typeof loadAdminOverview>> | null = null;
 let developer: Awaited<ReturnType<typeof loadDiagnostics>> | null = null;
+let attention: Attention | null = null;
 
 if (item.slug === "") {
   try {
     if (portal === "student") student = await loadStudentOverview(supabase, user!.id);
-    else if (portal === "teacher") teacher = await loadTeacherOverview(supabase, user!.id);
-    else if (portal === "owner") owner = await loadOwnerOverview(supabase);
+    else if (portal === "teacher" || portal === "owner") {
+      const viewer = { id: user!.id, roles, permissions };
+      // A failure here only hides the priority list; it never breaks the overview.
+      const att = loadAttention(supabase, viewer).catch((err) => {
+        console.error("[overview] attention failed:", err);
+        return null;
+      });
+      if (portal === "teacher") [teacher, attention] = await Promise.all([loadTeacherOverview(supabase, user!.id), att]);
+      else [owner, attention] = await Promise.all([loadOwnerOverview(supabase), att]);
+    }
     // Belt and braces: middleware already restricts /academy/developer to the developer role.
     else if (portal === "developer") developer = roles.includes("developer") ? await loadDiagnostics() : null;
     else admin = await loadAdminOverview(supabase, roles, permissions);
@@ -65,9 +75,9 @@ const firstName = (profile?.display_name || profile?.full_name || "").split(" ")
     ) : student ? (
       <StudentOverviewPage data={student} firstName={firstName} />
     ) : teacher ? (
-      <TeacherOverviewPage data={teacher} />
+      <TeacherOverviewPage data={teacher} attention={attention} />
     ) : owner ? (
-      <OwnerOverviewPage data={owner} />
+      <OwnerOverviewPage data={owner} attention={attention} />
     ) : admin ? (
       <AdminOverviewPage data={admin} />
     ) : developer ? (

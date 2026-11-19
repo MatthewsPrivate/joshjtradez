@@ -13,6 +13,7 @@ import {
   type TeacherOverview,
 } from "../../lib/academy/dashboard";
 import { navHref } from "../../lib/academy/nav";
+import type { Attention } from "../../lib/academy/students";
 
 const pct = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)}%`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -160,6 +161,39 @@ const Status = ({ value }: { value: string }) => (
   <span className={`status ${/pending|review|partially/i.test(value) ? "amber" : ""}`}>{value.replace(/_/g, " ")}</span>
 );
 
+/** Priority-action rows: trade reviews waiting, then students who need a nudge. */
+function attentionItems(a: Attention, base?: string): ReactNode[] {
+  const items: ReactNode[] = [];
+  if (a.reviewsWaiting) {
+    items.push(
+      <a className="agenda-item" key="reviews" href={navHref("teacher", "trade-reviews", base)}>
+        <div className="time-dot active" />
+        <time>{a.oldestReviewAt ? shortDate(a.oldestReviewAt) : "NOW"}</time>
+        <div>
+          <strong>{plural(a.reviewsWaiting, "trade")} waiting for your review</strong>
+          <span>Students are waiting on feedback</span>
+        </div>
+        <Icon name="chevron" size={16} />
+      </a>,
+    );
+  }
+  for (const s of a.atRisk) {
+    const flag = s.flags.find((f) => f.level === "high") ?? s.flags.find((f) => f.level === "medium") ?? s.flags[0];
+    items.push(
+      <a className="agenda-item" key={s.id} href={navHref("teacher", "students", base)}>
+        <div className={`time-dot ${s.level === "high" ? "danger" : ""}`} />
+        <time>{s.level === "high" ? "AT RISK" : "WATCH"}</time>
+        <div>
+          <strong>{s.name}</strong>
+          <span>{flag?.text ?? "Needs a check-in"}</span>
+        </div>
+        <Icon name="chevron" size={16} />
+      </a>,
+    );
+  }
+  return items;
+}
+
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: TIME_ZONE }).toUpperCase();
 
@@ -282,15 +316,21 @@ export function StudentOverviewPage({ data, firstName, base }: { data: StudentOv
 // ---------------------------------------------------------------------------
 // Teacher
 // ---------------------------------------------------------------------------
-export function TeacherOverviewPage({ data, base }: { data: TeacherOverview; base?: string }) {
+export function TeacherOverviewPage({ data, base, attention }: { data: TeacherOverview; base?: string; attention?: Attention | null }) {
   const total = data.completionsByMonth.reduce((a, b) => a + b, 0);
+  const items = attention ? attentionItems(attention, base) : [];
   return (
     <div className="page-stack">
       <Welcome eyebrow="TEACHER PORTAL" title="Teaching command centre" text="Your students and courses at a glance. Here is what needs your attention today." />
       <div className="metrics-grid">
         <Metric label="Assigned students" value={formatInt(data.assignedStudents)} icon="users" change={data.newStudentsThisMonth ? `+${data.newStudentsThisMonth} this month` : null} />
         <Metric label="Courses taught" value={formatInt(data.coursesTaught)} icon="book" />
-        <Metric label="Pending reviews" value="—" icon="note" note="No submissions" />
+        <Metric
+          label="Trade reviews waiting"
+          value={attention ? formatInt(attention.reviewsWaiting) : "—"}
+          icon="note"
+          note={attention ? (attention.reviewsWaiting ? "Needs a reply" : "All clear") : null}
+        />
         <Metric label="Avg. completion" value={pct(data.avgCompletion)} icon="chart" />
       </div>
       <div className="dashboard-grid">
@@ -307,8 +347,9 @@ export function TeacherOverviewPage({ data, base }: { data: TeacherOverview; bas
         <AgendaCard
           kicker="TODAY"
           title="Priority actions"
-          href={navHref("teacher", "live-classes", base)}
-          empty={<EmptyState icon="check" title="You're all caught up" text="Grading and class reminders will appear here." />}
+          href={navHref("teacher", "students", base)}
+          linkLabel={attention?.atRiskCount ? `See all ${attention.atRiskCount} students needing attention` : "View students"}
+          empty={items.length ? items : <EmptyState icon="check" title="You're all caught up" text="Trade reviews and students who go quiet will appear here." />}
         />
       </div>
       <TableCard
@@ -326,7 +367,8 @@ export function TeacherOverviewPage({ data, base }: { data: TeacherOverview; bas
 // ---------------------------------------------------------------------------
 // Owner
 // ---------------------------------------------------------------------------
-export function OwnerOverviewPage({ data, base }: { data: OwnerOverview; base?: string }) {
+export function OwnerOverviewPage({ data, base, attention }: { data: OwnerOverview; base?: string; attention?: Attention | null }) {
+  const studentItems = attention ? attentionItems(attention, base) : [];
   const money = (m: number, compact = false) => formatMoney(m, data.currency, compact);
   const last12 = data.revenueByMonth.reduce((a, b) => a + b, 0);
   return (
@@ -355,8 +397,8 @@ export function OwnerOverviewPage({ data, base }: { data: OwnerOverview; base?: 
           href={navHref("owner", "enquiries", base)}
           linkLabel={data.newEnquiryCount ? `View all ${data.newEnquiryCount} new enquiries` : "View enquiries"}
           empty={
-            data.newEnquiries.length ? (
-              data.newEnquiries.map((e, i) => (
+            data.newEnquiries.length || studentItems.length ? (
+              [...studentItems, ...data.newEnquiries.map((e, i) => (
                 <a className="agenda-item" key={e.id} href={`${navHref("owner", "enquiries", base)}#${e.id}`}>
                   <div className={`time-dot ${i === 0 ? "active" : ""}`} />
                   <time>{shortDate(e.created_at)}</time>
@@ -366,9 +408,9 @@ export function OwnerOverviewPage({ data, base }: { data: OwnerOverview; base?: 
                   </div>
                   <Icon name="chevron" size={16} />
                 </a>
-              ))
+              ))].slice(0, 6)
             ) : (
-              <EmptyState icon="check" title="Nothing needs your attention" text="New website enquiries and payment exceptions will surface here." />
+              <EmptyState icon="check" title="Nothing needs your attention" text="New enquiries, trade reviews and students who go quiet will surface here." />
             )
           }
         />
