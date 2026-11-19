@@ -6,6 +6,7 @@ import Flash from "../../components/academy/Flash.astro";
 export const prerender = false;
 
 const user = Astro.locals.user!;
+const mfaOn = Astro.locals.mfa?.enabled ?? false;
 ---
 
 <AcademyLayout title="Account settings">
@@ -22,6 +23,12 @@ const user = Astro.locals.user!;
         <label>Confirm password<input type="password" name="password_confirm" autocomplete="new-password" minlength="10" required /></label>
         <button type="submit" class="btn btn-outline">Update password</button>
       </form>
+
+      <div class="settings-section form-stack">
+        <span class="kicker">TWO-FACTOR AUTHENTICATION</span>
+        <p class="hint" style="margin:0">{mfaOn ? "On — sign-in needs a code from your authenticator app." : "Off — add a code from your phone at sign-in so a stolen password isn't enough."}</p>
+        <a class="btn btn-outline" href="/academy/mfa/setup">{mfaOn ? "Manage two-factor" : "Turn on two-factor"}</a>
+      </div>
 
       <div class="auth-links"><a href="/academy">Back to portals</a></div>
     </div>

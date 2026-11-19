@@ -1,0 +1,174 @@
+---
+// What students can buy: price, which courses it unlocks, and how it's selling.
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { EmptyState, Metric, PageTitle, SectionHead } from "../../../components/academy/ui";
+import { formatMoney } from "../../../lib/academy/dashboard";
+import { isPaymentsConfigured } from "../../../lib/academy/payments/stripe";
+
+export const prerender = false;
+
+const { supabase } = Astro.locals;
+const [productsRes, coursesRes, ordersRes] = await Promise.all([
+  supabase.from("products").select("id, name, description, price_minor, currency, active, created_at, product_courses(course_id)").order("created_at"),
+  supabase.from("courses").select("id, title, status").order("title"),
+  supabase.from("orders").select("id, product_id, amount_minor, refunded_minor, currency, status, customer_email, created_at, paid_at, user_id").order("created_at", { ascending: false }).limit(500),
+]);
+type Product = { id: string; name: string; description: string; price_minor: number; currency: string; active: boolean; product_courses: { course_id: string }[] };
+const products = (productsRes.data ?? []) as Product[];
+const courses = (coursesRes.data ?? []) as { id: string; title: string; status: string }[];
+const orders = (ordersRes.data ?? []) as { id: string; product_id: string; amount_minor: number; refunded_minor: number; currency: string; status: string; customer_email: string | null; created_at: string; paid_at: string | null; user_id: string | null }[];
+const courseTitle = new Map(courses.map((c) => [c.id, c.title]));
+const productName = new Map(products.map((p) => [p.id, p.name]));
+
+const sold = (s: string) => s === "paid" || s === "partially_refunded";
+const paidOrders = orders.filter((o) => sold(o.status));
+const net = (o: (typeof orders)[number]) => o.amount_minor - o.refunded_minor;
+const currency = products[0]?.currency ?? "GBP";
+const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+const statsFor = (pid: string) => {
+  const os = paidOrders.filter((o) => o.product_id === pid);
+  return { count: os.length, revenue: os.reduce((a, o) => a + net(o), 0) };
+};
+const stripeOn = isPaymentsConfigured();
+const webhookOn = Boolean(import.meta.env.STRIPE_WEBHOOK_SECRET);
+const testMode = (import.meta.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+const here = "/academy/owner/products";
+const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+const statusClass: Record<string, string> = { paid: "", pending: "amber", partially_refunded: "amber", refunded: "muted", failed: "muted", cancelled: "muted" };
+const major = (minor: number) => (minor % 100 === 0 ? String(minor / 100) : (minor / 100).toFixed(2));
+---
+
+<PortalLayout portal="owner" activeSlug="products" pageLabel="Products">
+  <div class="page-stack">
+    <PageTitle kicker="PRODUCTS & SALES" title="What students can buy" description="Set prices, choose which courses each product unlocks, and see sales as they come in." />
+
+    <section class={`card panel ${stripeOn && webhookOn ? "" : "review-cta"}`}>
+      <SectionHead kicker="PAYMENTS" title={stripeOn && webhookOn ? (testMode ? "Stripe connected — TEST MODE" : "Stripe connected — live") : "Stripe isn't connected yet"} />
+      {
+        stripeOn && webhookOn ? (
+          <p class="hint" style="margin:0">
+            {testMode ? "Payments use Stripe test cards (4242 4242 4242 4242) — no real money moves. Switch to live keys in Vercel when you're ready to sell." : "Buy buttons are live. Courses unlock automatically when Stripe confirms payment, and refunds in Stripe remove access."}
+          </p>
+        ) : (
+          <p class="hint" style="margin:0">
+            Buy buttons stay disabled until <code>STRIPE_SECRET_KEY</code>{webhookOn ? "" : " and STRIPE_WEBHOOK_SECRET"} are set in Vercel. See ACADEMY_SETUP.md → “Payments (Stripe)”. You can still create products and prices now.
+          </p>
+        )
+      }
+    </section>
+
+    <div class="metrics-grid compact">
+      <Metric label="Sales this month" value={String(paidOrders.filter((o) => (o.paid_at ?? o.created_at) >= monthStart).length)} icon="wallet" />
+      <Metric label="Revenue this month" value={formatMoney(paidOrders.filter((o) => (o.paid_at ?? o.created_at) >= monthStart).reduce((a, o) => a + net(o), 0), currency)} icon="trend" />
+      <Metric label="All-time revenue" value={formatMoney(paidOrders.reduce((a, o) => a + net(o), 0), currency)} icon="chart" />
+      <Metric label="Awaiting account setup" value={String(paidOrders.filter((o) => !o.user_id).length)} icon="users" note="Paid, password not set yet" />
+    </div>
+
+    <section class="card table-card">
+      <SectionHead kicker="CATALOGUE" title="Products" />
+      {
+        products.length === 0 ? (
+          <EmptyState icon="book" title="No products yet" text="Create one below — e.g. “Foundations course” at £297 unlocking your Foundations course." />
+        ) : (
+          <div class="product-list">
+            {products.map((p) => {
+              const st = statsFor(p.id);
+              const linked = new Set(p.product_courses.map((c) => c.course_id));
+              return (
+                <details class="product-row">
+                  <summary>
+                    <div>
+                      <strong>{p.name}</strong>
+                      <small>{[...linked].map((c) => courseTitle.get(c) ?? "Course").join(" · ") || "No courses linked"}</small>
+                    </div>
+                    <span class="price-tag">{formatMoney(p.price_minor, p.currency)}</span>
+                    <span class={`status ${p.active ? "" : "muted"}`}>{p.active ? "On sale" : "Hidden"}</span>
+                    <span class="hint">{st.count} sold · {formatMoney(st.revenue, p.currency)}</span>
+                  </summary>
+                  <form method="post" action="/api/academy/products" class="product-form">
+                    <input type="hidden" name="intent" value="update" /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="_back" value={here} />
+                    <div class="form-grid">
+                      <label>Name<input name="name" value={p.name} required maxlength="120" /></label>
+                      <label>Price
+                        <span class="input-pair">
+                          <input name="price" inputmode="decimal" value={major(p.price_minor)} required />
+                          <select name="currency" aria-label="Currency">{["GBP", "USD", "EUR"].map((c) => <option selected={p.currency === c}>{c}</option>)}</select>
+                        </span>
+                      </label>
+                      <label class="wide">Description<textarea name="description" rows="2" maxlength="2000">{p.description}</textarea></label>
+                      <div class="wide">
+                        <span class="field-label">Unlocks these courses</span>
+                        <div class="chip-checks">{courses.map((c) => <label class="chip-check gold"><input type="checkbox" name="course_ids" value={c.id} checked={linked.has(c.id)} /><span>{c.title}{c.status !== "published" ? " (draft)" : ""}</span></label>)}</div>
+                      </div>
+                      <label class="check-row"><input type="checkbox" name="active" checked={p.active} /> On sale</label>
+                    </div>
+                    <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Save product</button></div>
+                  </form>
+                  <form method="post" action="/api/academy/products" style="margin-top:8px">
+                    <input type="hidden" name="intent" value="delete" /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="_back" value={here} />
+                    <button class="btn btn-ghost btn-sm" type="submit">{st.count ? "Archive (has sales)" : "Delete product"}</button>
+                  </form>
+                </details>
+              );
+            })}
+          </div>
+        )
+      }
+    </section>
+
+    <section class="card panel">
+      <SectionHead kicker="NEW" title="Create a product" />
+      {
+        courses.length === 0 ? (
+          <p class="hint" style="margin:0">Create a course in the Course builder first — a product needs at least one course to unlock.</p>
+        ) : (
+          <form method="post" action="/api/academy/products" class="product-form">
+            <input type="hidden" name="intent" value="create" /><input type="hidden" name="_back" value={here} />
+            <div class="form-grid">
+              <label>Name<input name="name" required maxlength="120" placeholder="e.g. Foundations of Price Action" /></label>
+              <label>Price
+                <span class="input-pair">
+                  <input name="price" inputmode="decimal" required placeholder="297" />
+                  <select name="currency" aria-label="Currency"><option>GBP</option><option>USD</option><option>EUR</option></select>
+                </span>
+              </label>
+              <label class="wide">Description <span class="hint">(optional, shown at checkout and on the pricing section)</span><textarea name="description" rows="2" maxlength="2000" /></label>
+              <div class="wide">
+                <span class="field-label">Unlocks these courses (pick several for a bundle)</span>
+                <div class="chip-checks">{courses.map((c) => <label class="chip-check gold"><input type="checkbox" name="course_ids" value={c.id} /><span>{c.title}{c.status !== "published" ? " (draft)" : ""}</span></label>)}</div>
+              </div>
+              <label class="check-row"><input type="checkbox" name="active" checked /> On sale</label>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Create product</button></div>
+          </form>
+        )
+      }
+    </section>
+
+    <section class="card table-card">
+      <SectionHead kicker="SALES" title="Recent orders" />
+      {
+        orders.length === 0 ? (
+          <EmptyState icon="wallet" title="No orders yet" text="Every checkout appears here — paid, abandoned and refunded." />
+        ) : (
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Product</th><th>Buyer</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody>
+                {orders.slice(0, 50).map((o) => (
+                  <tr>
+                    <td class="mono">{date(o.paid_at ?? o.created_at)}</td>
+                    <td><strong>{productName.get(o.product_id) ?? "—"}</strong></td>
+                    <td>{o.customer_email ?? <span class="hint">—</span>}{sold(o.status) && !o.user_id && <small>Hasn't set a password yet</small>}</td>
+                    <td class="mono">{formatMoney(o.amount_minor, o.currency)}{o.refunded_minor > 0 && <small>−{formatMoney(o.refunded_minor, o.currency)} refunded</small>}</td>
+                    <td><span class={`status ${statusClass[o.status] ?? "muted"}`}>{o.status === "pending" ? "Started checkout" : o.status.replace("_", " ")}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </section>
+  </div>
+</PortalLayout>

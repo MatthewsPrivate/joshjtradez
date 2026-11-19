@@ -187,6 +187,13 @@ const paletteItems = [
       </header>
       <main class={wide ? "lesson-page-wrap" : undefined}>
         <Flash />
+        {Astro.locals.mfa?.staff && !Astro.locals.mfa.enabled && !previewRoot && (
+          <a class="mfa-banner" href="/academy/mfa/setup">
+            <Icon name="shield" size={15} />
+            <span><strong>Protect your account.</strong> Staff accounts can see student data and payments — turn on two-factor authentication.</span>
+            <Icon name="arrow" size={14} />
+          </a>
+        )}
         <slot />
       </main>
     </div>

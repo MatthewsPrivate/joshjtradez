@@ -1,0 +1,40 @@
+---
+// Sign-in step two: enter the 6-digit code from the authenticator app.
+import AcademyLayout from "../../../layouts/AcademyLayout.astro";
+import { Logo } from "../../../components/academy/ui";
+import Flash from "../../../components/academy/Flash.astro";
+import { safeNext } from "../../../lib/academy/http";
+
+export const prerender = false;
+
+const next = safeNext(Astro.url.searchParams.get("next"), "/academy");
+const { supabase } = Astro.locals;
+const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+if (aal?.currentLevel === "aal2" || aal?.nextLevel !== "aal2") return Astro.redirect(next);
+const { data: factors } = await supabase.auth.mfa.listFactors();
+const factor = factors?.totp?.[0];
+if (!factor) return Astro.redirect("/academy/mfa/setup");
+---
+
+<AcademyLayout title="Two-factor sign-in">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      <span class="kicker">TWO-FACTOR AUTHENTICATION</span>
+      <h1>Enter your code</h1>
+      <p class="lede">Open your authenticator app and enter the 6-digit code for JoshJTradez Academy.</p>
+      <Flash />
+      <form class="form-stack" method="post" action="/api/academy/mfa">
+        <input type="hidden" name="intent" value="verify" />
+        <input type="hidden" name="factor_id" value={factor.id} />
+        <input type="hidden" name="next" value={next} />
+        <label>Authentication code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus class="code-input" placeholder="123456" /></label>
+        <button type="submit" class="btn btn-primary">Verify</button>
+      </form>
+      <div class="auth-links">
+        <form method="post" action="/api/academy/auth/logout"><button class="text-btn" type="submit">Sign out</button></form>
+        <span class="hint">Lost your phone? Contact the site developer to reset two-factor.</span>
+      </div>
+    </div>
+  </main>
+</AcademyLayout>

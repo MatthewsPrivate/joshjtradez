@@ -8,6 +8,8 @@ export interface EmailMessage {
   text: string;
   html?: string;
   replyTo?: string;
+  /** Overrides the default sender, e.g. "JoshJTradez Academy <academy@domain>". */
+  from?: string;
 }
 
 export type EmailResult = { ok: true; id: string } | { ok: false; error: string };
@@ -27,7 +29,7 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify({
-        from: import.meta.env.CONTACT_FROM_EMAIL || DEFAULT_FROM,
+        from: msg.from || import.meta.env.CONTACT_FROM_EMAIL || DEFAULT_FROM,
         to: Array.isArray(msg.to) ? msg.to : [msg.to],
         subject: msg.subject,
         text: msg.text,

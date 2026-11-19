@@ -26,6 +26,8 @@ export interface DevDiagnostics {
   counts: { table: string; count: number | null }[];
   runtime: { label: string; value: string }[];
   audit: { created_at: string; action: string; actor_id: string | null; target_type: string | null; target_id: string | null }[];
+  /** Payment health: anything here that isn't ok means a customer may be affected. */
+  payments: CheckResult[];
 }
 
 export async function loadDiagnostics(): Promise<DevDiagnostics> {
@@ -37,6 +39,11 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
     { key: "ACADEMY_DEVELOPER_EMAILS", set: !!import.meta.env.ACADEMY_DEVELOPER_EMAILS, required: false, note: "Auto-grants hidden Developer" },
     { key: "RESEND_API_KEY", set: !!import.meta.env.RESEND_API_KEY, required: false, note: "Emails website enquiries to Josh" },
     { key: "CONTACT_NOTIFY_EMAIL", set: !!import.meta.env.CONTACT_NOTIFY_EMAIL, required: false, note: "Enquiry recipient (else owner email)" },
+    { key: "ACADEMY_FROM_EMAIL", set: !!import.meta.env.ACADEMY_FROM_EMAIL, required: false, note: "Sender for academy emails (verified Resend domain)" },
+    { key: "ACADEMY_REPLY_TO", set: !!import.meta.env.ACADEMY_REPLY_TO, required: false, note: "Where student replies go (Josh's inbox)" },
+    { key: "STRIPE_SECRET_KEY", set: !!import.meta.env.STRIPE_SECRET_KEY, required: false, note: "Enables checkout (sk_test_ / sk_live_)" },
+    { key: "STRIPE_WEBHOOK_SECRET", set: !!import.meta.env.STRIPE_WEBHOOK_SECRET, required: false, note: "Verifies Stripe webhooks (whsec_)" },
+    { key: "ACADEMY_REQUIRE_STAFF_MFA", set: import.meta.env.ACADEMY_REQUIRE_STAFF_MFA === "true", required: false, note: "Forces two-factor for staff" },
   ];
 
   const db = createServiceClient();
@@ -58,6 +65,8 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
       probe("20261111040000_contact_submissions", () => db.from("contact_submissions").select("id", { head: true })),
       probe("20261119000000_trade_reviews", () => db.from("trade_reviews").select("id", { head: true })),
       probe("20261119010000_student_activity", () => db.from("profiles").select("last_seen_at", { head: true })),
+      probe("20261119020000_guest_checkout", () => db.from("orders").select("customer_email", { head: true })),
+      probe("20261119030000_email_security", () => db.from("email_codes").select("id", { head: true })),
     ]),
     Promise.all(
       ["profiles", "courses", "lessons", "enrolments", "orders", "community_posts"].map(async (table) => {
@@ -79,6 +88,7 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
   }
   const dbLatency = Math.min(...rtts);
 
+  const payments = await loadPaymentHealth(db);
   const sha = runtimeEnv("VERCEL_GIT_COMMIT_SHA");
   return {
     env,
@@ -94,5 +104,27 @@ export async function loadDiagnostics(): Promise<DevDiagnostics> {
       { label: "Node.js", value: proc?.version ?? "—" },
     ],
     audit: auditRes.data ?? [],
+    payments,
   };
+}
+
+async function loadPaymentHealth(db: ReturnType<typeof createServiceClient>): Promise<CheckResult[]> {
+  const day = new Date(Date.now() - 864e5).toISOString();
+  const week = new Date(Date.now() - 7 * 864e5).toISOString();
+  const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {
+    const { count, error } = await q;
+    return error ? null : (count ?? 0);
+  };
+  const [failedEvents, unprocessed, unclaimed] = await Promise.all([
+    count(db.from("payment_events").select("id", { head: true, count: "exact" }).not("error", "is", null).is("processed_at", null).gte("received_at", week)),
+    count(db.from("payment_events").select("id", { head: true, count: "exact" }).is("processed_at", null).lt("received_at", new Date(Date.now() - 15 * 60 * 1000).toISOString())),
+    count(db.from("orders").select("id", { head: true, count: "exact" }).eq("status", "paid").is("user_id", null).lt("paid_at", day)),
+  ]);
+  const row = (name: string, n: number | null, okText: string, badText: (n: number) => string): CheckResult =>
+    n === null ? { name, ok: false, detail: "Couldn't check (migration not applied?)" } : { name, ok: n === 0, detail: n === 0 ? okText : badText(n) };
+  return [
+    row("Webhook failures (7 days)", failedEvents, "None", (n) => `${n} Stripe event(s) failed — Stripe retries for 3 days; check function logs`),
+    row("Stuck webhook events", unprocessed, "None", (n) => `${n} event(s) received but never finished processing`),
+    row("Paid, account not set up (24h+)", unclaimed, "None", (n) => `${n} buyer(s) paid over a day ago but haven't set a password — consider a friendly nudge`),
+  ];
 }

@@ -87,6 +87,11 @@ export function DeveloperOverviewPage({
         <Table headers={data.counts.map((c) => c.table)} rows={[data.counts.map((c) => <span className="mono">{c.count ?? "error"}</span>)]} />
       </section>
 
+      <section className="card table-card">
+        <SectionHead kicker="PAYMENTS" title="Payment health" />
+        <Table headers={["Check", "Status", "Detail"]} rows={data.payments.map((p) => [<strong>{p.name}</strong>, <Ok ok={p.ok} yes="OK" no="Attention" />, p.detail])} />
+      </section>
+
       <div className="dashboard-grid">
         <section className="card table-card">
           <SectionHead kicker="SECURITY" title="Recent audit log" />

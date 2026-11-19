@@ -32,6 +32,8 @@ declare namespace App {
     lessonsThisWeek?: Promise<number>;
     /** Portal pages only: latest notifications for the top bar (started early by middleware). */
     notifications?: Promise<NotificationItem[]>;
+    /** Two-factor state for the signed-in user (set by middleware on protected academy paths). */
+    mfa?: { enabled: boolean; staff: boolean };
   }
   interface NotificationItem {
     id: number;

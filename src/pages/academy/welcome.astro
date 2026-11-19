@@ -1,0 +1,132 @@
+---
+// Stripe sends buyers here after paying (?session_id=cs_…). We confirm the
+// payment with Stripe server-to-server (never trusting the URL), apply it, then:
+//   new email      → choose a password, land in the course
+//   existing email → course added to that account, sign in to start
+//   signed in      → straight to the course
+import AcademyLayout from "../../layouts/AcademyLayout.astro";
+import { Logo } from "../../components/academy/ui";
+import Flash from "../../components/academy/Flash.astro";
+import { MIN_PASSWORD_LENGTH, withQuery } from "../../lib/academy/http";
+import { syncCheckout, type OrderRecord } from "../../lib/academy/payments/fulfil";
+import { createServiceClient } from "../../lib/academy/supabase";
+import { hasActiveClaimCode, issueClaimCode } from "../../lib/academy/codes";
+import { emailPurchaseCode, isEmailConfigured } from "../../lib/academy/emails";
+
+export const prerender = false;
+
+const sessionId = Astro.url.searchParams.get("session_id") ?? "";
+if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return Astro.redirect("/");
+
+let order: OrderRecord | null = null;
+let failed = false;
+try {
+  order = (await syncCheckout(sessionId))?.order ?? null;
+} catch (err) {
+  console.error("[welcome] lookup failed:", err instanceof Error ? err.message : err);
+  failed = true;
+}
+
+const db = createServiceClient();
+let productName = "your course";
+let courseSlug: string | null = null;
+let accountExists = false;
+if (order) {
+  const [{ data: product }, { data: pc }, existing] = await Promise.all([
+    db.from("products").select("name").eq("id", order.product_id).maybeSingle(),
+    db.from("product_courses").select("courses(slug)").eq("product_id", order.product_id).limit(1).maybeSingle(),
+    order.user_id || !order.customer_email ? Promise.resolve({ data: order.user_id }) : db.rpc("user_id_by_email", { e: order.customer_email }),
+  ]);
+  productName = product?.name ?? productName;
+  courseSlug = (pc as unknown as { courses: { slug: string } | null } | null)?.courses?.slug ?? null;
+  accountExists = Boolean(order.user_id || existing.data);
+}
+
+const paid = order?.status === "paid" || order?.status === "partially_refunded";
+const me = Astro.locals.user;
+const courseHref = courseSlug ? `/academy/student/courses/${courseSlug}` : "/academy/student/my-academy";
+// Already signed in as the buyer: go straight in.
+if (paid && me && order?.user_id === me.id) return Astro.redirect(`${courseHref}?notice=purchase-complete`);
+
+const state = failed ? "error" : !order ? "unknown" : paid ? (accountExists || order.account_claimed_at ? "sign-in" : "create") : order.status === "pending" ? "processing" : "not-paid";
+// Email ownership check: send the first code automatically (refreshing doesn't resend).
+const needsCode = state === "create" && isEmailConfigured();
+let codeError = false;
+if (needsCode && !(await hasActiveClaimCode(order!.id))) {
+  const issued = await issueClaimCode(order!.id, order!.customer_email!);
+  codeError = !(issued.ok && (await emailPurchaseCode(order!.customer_email!, issued.code, productName)));
+}
+
+const maskedEmail = order?.customer_email?.replace(/^(.)(.*)(@.*)$/, (_, a: string, b: string, c: string) => a + "•".repeat(Math.min(b.length, 6)) + c) ?? "";
+---
+
+<AcademyLayout title="Welcome to the academy">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      {
+        state === "create" && (
+          <>
+            <span class="kicker" style="color:var(--green)">✓ PAYMENT CONFIRMED</span>
+            <h1>Welcome to {productName}</h1>
+            <p class="lede">
+              {needsCode
+                ? <>We've emailed a 6-digit code to <strong>{order!.customer_email}</strong>. Enter it below to confirm it's you, then choose a password.</>
+                : <>One last step — choose a password for your academy account. You'll sign in with <strong>{order!.customer_email}</strong>.</>}
+            </p>
+            <Flash />
+            {codeError && <p class="flash flash-error" role="alert">We couldn't send the code just now. Use “Resend code” below in a minute.</p>}
+            <form class="form-stack" method="post" action="/api/academy/checkout/claim">
+              <input type="hidden" name="session_id" value={sessionId} />
+              {needsCode && <label>Code from your email<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required placeholder="123456" class="code-input" /></label>}
+              <label>Your name<input name="full_name" autocomplete="name" maxlength="120" required /></label>
+              <label>Password<input type="password" name="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required /></label>
+              <label>Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required /></label>
+              <button type="submit" class="btn btn-primary">Create account &amp; start learning</button>
+            </form>
+            {needsCode && (
+              <form method="post" action="/api/academy/checkout/send-code" class="auth-links">
+                <input type="hidden" name="session_id" value={sessionId} />
+                <span>No email? Check spam, or <button class="text-btn" type="submit">resend code</button></span>
+              </form>
+            )}
+            <p class="hint">Your receipt from Stripe is on its way to the same email.</p>
+          </>
+        )
+      }
+      {
+        state === "sign-in" && (
+          <>
+            <span class="kicker" style="color:var(--green)">✓ PAYMENT CONFIRMED</span>
+            <h1>{productName} is unlocked</h1>
+            <p class="lede">It's been added to your existing academy account{maskedEmail ? ` (${maskedEmail})` : ""}. Sign in to start learning.</p>
+            <a class="btn btn-primary" href={withQuery("/academy/login", { next: courseHref })}>Sign in</a>
+            <div class="auth-links"><a href="/academy/forgot-password">Forgot your password?</a></div>
+          </>
+        )
+      }
+      {
+        state === "processing" && (
+          <>
+            <h1>Confirming your payment…</h1>
+            <p class="lede">This usually takes a few seconds. This page refreshes on its own — please don't pay again.</p>
+            <script is:inline>setTimeout(function () { location.reload(); }, 4000);</script>
+          </>
+        )
+      }
+      {
+        (state === "not-paid" || state === "unknown" || state === "error") && (
+          <>
+            <h1>{state === "error" ? "We couldn't check your payment" : "Payment not completed"}</h1>
+            <p class="lede">
+              {state === "error"
+                ? "Something went wrong on our side. If you were charged, your course will still be unlocked — please refresh in a minute or contact us."
+                : "We couldn't find a completed payment for this checkout. If you were charged, contact us and we'll sort it out straight away."}
+            </p>
+            <a class="btn btn-outline" href="/#contact">Contact us</a>
+          </>
+        )
+      }
+    </div>
+  </main>
+</AcademyLayout>

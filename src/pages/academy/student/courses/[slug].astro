@@ -1,5 +1,6 @@
 ---
 import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import { isPaymentsConfigured } from "../../../../lib/academy/payments/stripe";
 import { Icon } from "../../../../components/academy/Icon";
 import { EmptyState, Progress, SectionHead } from "../../../../components/academy/ui";
 import { coverUrl, loadCourseTree, loadProgress, resumeLesson } from "../../../../lib/academy/courses";
@@ -8,6 +9,7 @@ import { renderMarkdown } from "../../../../lib/academy/markdown";
 import { formatDuration, formatTotal } from "../../../../lib/academy/video";
 
 export const prerender = false;
+const paymentsOn = isPaymentsConfigured();
 
 const { slug = "" } = Astro.params;
 const { supabase, user } = Astro.locals;
@@ -19,13 +21,13 @@ const [enrolRes, manageRes, savedRes, productRes, progress] = await Promise.all(
   supabase.from("enrolments").select("id").eq("user_id", user!.id).eq("course_id", course.id).eq("status", "active").maybeSingle(),
   supabase.rpc("can_manage_course", { c: course.id }),
   supabase.from("course_bookmarks").select("course_id").eq("user_id", user!.id).eq("course_id", course.id).maybeSingle(),
-  supabase.from("product_courses").select("products(name, price_minor, currency, active)").eq("course_id", course.id),
+  supabase.from("product_courses").select("products(id, name, price_minor, currency, active)").eq("course_id", course.id),
   loadProgress(supabase, user!.id, course.id),
 ]);
 const enrolled = Boolean(enrolRes.data);
 const manager = manageRes.data === true;
 const saved = Boolean(savedRes.data);
-const products = ((productRes.data ?? []) as unknown as { products: { name: string; price_minor: number; currency: string; active: boolean } | null }[])
+const products = ((productRes.data ?? []) as unknown as { products: { id: string; name: string; price_minor: number; currency: string; active: boolean } | null }[])
   .map((r) => r.products)
   .filter((p): p is NonNullable<typeof p> => Boolean(p?.active))
   .sort((a, b) => a.price_minor - b.price_minor);
@@ -77,7 +79,14 @@ const here = `/academy/student/courses/${course.slug}`;
           ) : (
             <div class="actions" style="margin-top:22px;flex-wrap:wrap">
               {products.length ? <span class="price-tag">{formatMoney(products[0]!.price_minor, products[0]!.currency)}</span> : <span class="label-placeholder">PRICE TO BE ANNOUNCED</span>}
-              <button class="btn btn-primary" type="button" disabled title="Checkout opens when the payment provider is connected">Enrol — coming soon</button>
+              {products.length && paymentsOn ? (
+                <form method="post" action="/api/academy/checkout">
+                  <input type="hidden" name="product_id" value={products[0]!.id} /><input type="hidden" name="_back" value={here} />
+                  <button class="btn btn-primary" type="submit">Enrol now</button>
+                </form>
+              ) : (
+                <button class="btn btn-primary" type="button" disabled title="Checkout opens soon">Enrol — coming soon</button>
+              )}
               {preview && <a class="btn btn-outline" href={learn(preview.id)}><Icon name="play" size={14} /> Watch free preview</a>}
               {manager && resume && <a class="btn btn-outline" href={learn(resume.id)}>Open lessons</a>}
               <form method="post" action="/api/academy/bookmarks">

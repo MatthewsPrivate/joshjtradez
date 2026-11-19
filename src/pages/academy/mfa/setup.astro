@@ -1,0 +1,73 @@
+---
+// Turn on two-factor: scan the QR code with an authenticator app (Google
+// Authenticator, Microsoft Authenticator, 1Password, Authy…), then confirm a code.
+import AcademyLayout from "../../../layouts/AcademyLayout.astro";
+import { Logo } from "../../../components/academy/ui";
+import Flash from "../../../components/academy/Flash.astro";
+import { mfaRequiredFor } from "../../../lib/academy/mfa";
+
+export const prerender = false;
+
+const { supabase, roles, user } = Astro.locals;
+const { data: factors } = await supabase.auth.mfa.listFactors();
+const verified = factors?.totp?.[0] ?? null;
+const required = mfaRequiredFor(roles);
+
+let enrol: { id: string; qr: string; secret: string } | null = null;
+let enrolError = false;
+if (!verified) {
+  // Start fresh: remove any half-finished setup, then create a new secret.
+  for (const f of factors?.all ?? []) if (f.status === "unverified") await supabase.auth.mfa.unenroll({ factorId: f.id });
+  const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "JoshJTradez Academy", friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}` });
+  if (error || !data) {
+    console.error("[mfa] enroll failed:", error?.message);
+    enrolError = true;
+  } else enrol = { id: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+---
+
+<AcademyLayout title="Two-factor authentication">
+  <main class="auth-wrap">
+    <div class="auth-card card">
+      <a href="/" aria-label="JoshJTradez"><Logo /></a>
+      <span class="kicker">ACCOUNT SECURITY</span>
+      <h1>Two-factor authentication</h1>
+      <Flash />
+      {
+        verified ? (
+          <>
+            <p class="lede"><span class="status">On</span> Signing in to {user!.email} needs your password and a code from your authenticator app.</p>
+            {required ? (
+              <p class="hint">Two-factor is required for staff accounts, so it can't be turned off.</p>
+            ) : (
+              <form method="post" action="/api/academy/mfa" class="form-stack">
+                <input type="hidden" name="intent" value="disable" /><input type="hidden" name="factor_id" value={verified.id} />
+                <button class="btn btn-ghost" type="submit">Turn off two-factor</button>
+              </form>
+            )}
+          </>
+        ) : enrol ? (
+          <>
+            <p class="lede">{required ? "Your staff account needs two-factor before you continue. " : ""}Protect your account with a code from your phone, so a stolen password isn't enough to get in.</p>
+            <ol class="mfa-steps">
+              <li>Install an authenticator app — Google Authenticator, Microsoft Authenticator or 1Password.</li>
+              <li>Scan this QR code with it:
+                <div class="mfa-qr"><img src={enrol.qr} alt="QR code for your authenticator app" width="180" height="180" /></div>
+                <details><summary class="hint">Can't scan? Enter this key instead</summary><code class="mfa-secret">{enrol.secret}</code></details>
+              </li>
+              <li>Enter the 6-digit code the app shows:</li>
+            </ol>
+            <form class="form-stack" method="post" action="/api/academy/mfa">
+              <input type="hidden" name="intent" value="enable" /><input type="hidden" name="factor_id" value={enrol.id} />
+              <label>Code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required class="code-input" placeholder="123456" /></label>
+              <button type="submit" class="btn btn-primary">Turn on two-factor</button>
+            </form>
+          </>
+        ) : (
+          <p class="lede">{enrolError ? "We couldn't start two-factor setup. Please refresh, and if it keeps failing check that MFA (TOTP) is enabled in Supabase → Authentication." : ""}</p>
+        )
+      }
+      <div class="auth-links">{required && !verified ? <form method="post" action="/api/academy/auth/logout"><button class="text-btn" type="submit">Sign out</button></form> : <a href="/academy/settings">Back to settings</a>}</div>
+    </div>
+  </main>
+</AcademyLayout>

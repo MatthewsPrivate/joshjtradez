@@ -2,6 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 import { bootstrapRoles, pendingBootstrapRoles } from "./lib/academy/bootstrap";
 import { createUserClient, isSupabaseConfigured } from "./lib/academy/supabase";
 import { canOpenPortal, isRole, type Role, type StaffPermission } from "./lib/academy/roles";
+import { MFA_PATHS, isStaff, mfaRequiredFor } from "./lib/academy/mfa";
 
 // Reachable without a session.
 const PUBLIC_ACADEMY_PATHS = new Set([
@@ -12,6 +13,12 @@ const PUBLIC_ACADEMY_PATHS = new Set([
   "/api/academy/auth/login",
   "/api/academy/auth/signup",
   "/api/academy/auth/forgot",
+  // Buying: guests pay first, then create their account.
+  "/academy/welcome",
+  "/api/academy/checkout",
+  "/api/academy/checkout/claim",
+  "/api/academy/checkout/send-code",
+  "/api/academy/payments/webhook/stripe",
 ]);
 
 const isAcademyPath = (p: string) =>
@@ -188,6 +195,18 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
   if (ctx.locals.profile?.status === "suspended" && path !== "/academy/suspended" && path !== "/api/academy/auth/logout") {
     return deny(403, "/academy/suspended");
+  }
+
+  // Two-factor: accounts with an authenticator set up must complete the code
+  // step before anything else; staff may be required to set one up. Reads the
+  // session locally (no network round trip).
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  const mfaOn = aal?.nextLevel === "aal2";
+  ctx.locals.mfa = { enabled: mfaOn, staff: isStaff(ctx.locals.roles) };
+  if (!MFA_PATHS.has(path)) {
+    const nextParam = encodeURIComponent(ctx.url.pathname + ctx.url.search);
+    if (mfaOn && aal?.currentLevel !== "aal2") return deny(401, `/academy/mfa?next=${nextParam}`);
+    if (!mfaOn && mfaRequiredFor(ctx.locals.roles)) return deny(403, "/academy/mfa/setup?error=mfa-required");
   }
 
   // /academy/<portal>/... requires a role that can open that portal.
